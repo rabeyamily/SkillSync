@@ -1,0 +1,418 @@
+"""
+Skill matching algorithm for comparing skills between resume and job description.
+"""
+import re
+from typing import List, Dict, Tuple, Optional, Set
+from difflib import SequenceMatcher
+try:
+    from Levenshtein import ratio as levenshtein_ratio
+except ImportError:
+    # Fallback if Levenshtein not available
+    def levenshtein_ratio(s1: str, s2: str) -> float:
+        return SequenceMatcher(None, s1, s2).ratio()
+
+from app.models.schemas import Skill, SkillMatch
+from app.models.skill_taxonomy import SkillCategory
+
+
+class SkillMatcher:
+    """Skill matching algorithm with exact, synonym, and fuzzy matching."""
+    
+    # Synonym dictionary for common skill aliases
+    SKILL_SYNONYMS: Dict[str, Set[str]] = {
+        # Programming Languages
+        "javascript": {"js", "ecmascript", "nodejs", "node.js"},
+        "typescript": {"ts"},
+        "c++": {"cpp", "c plus plus"},
+        "c#": {"csharp", "c-sharp", "dotnet", ".net"},
+        "python": {"py"},
+        "java": {"jvm"},
+        "go": {"golang"},
+        
+        # Frameworks
+        "react": {"reactjs", "react.js"},
+        "angular": {"angularjs", "angular.js"},
+        "vue": {"vuejs", "vue.js"},
+        "node.js": {"nodejs", "node", "npm"},
+        "spring boot": {"springboot", "spring"},
+        
+        # Tools & Platforms
+        "aws": {"amazon web services", "amazon aws"},
+        "azure": {"microsoft azure"},
+        "gcp": {"google cloud", "google cloud platform"},
+        "kubernetes": {"k8s"},
+        "ci/cd": {"cicd", "continuous integration", "continuous deployment"},
+        
+        # Databases
+        "postgresql": {"postgres"},
+        "mongodb": {"mongo"},
+        
+        # Methodologies
+        "agile": {"agile methodology", "agile development"},
+        "scrum": {"scrum methodology"},
+        
+        # Soft Skills
+        "problem solving": {"problem-solving", "troubleshooting", "debugging"},
+        "communication": {"communication skills", "verbal communication", "written communication"},
+        "leadership": {"leadership skills", "team leadership"},
+    }
+    
+    # Normalization rules
+    NORMALIZATION_RULES = {
+        r'\.js$': '',  # Remove .js suffix
+        r'\.jsx$': '',  # Remove .jsx suffix
+        r'\.ts$': '',  # Remove .ts suffix
+        r'\.tsx$': '',  # Remove .tsx suffix
+        r'\s+': ' ',  # Normalize whitespace
+        r'[-_]': ' ',  # Replace hyphens/underscores with spaces
+    }
+    
+    # Fuzzy matching threshold
+    FUZZY_THRESHOLD = 0.85  # 85% similarity for fuzzy match
+    EXACT_MATCH_CONFIDENCE = 1.0
+    SYNONYM_MATCH_CONFIDENCE = 0.95
+    FUZZY_MATCH_CONFIDENCE = 0.80
+    CATEGORY_MATCH_CONFIDENCE = 0.70
+    
+    @staticmethod
+    def normalize_skill_name(skill_name: str) -> str:
+        """
+        Normalize skill name for comparison.
+        
+        Args:
+            skill_name: Skill name to normalize
+            
+        Returns:
+            Normalized skill name
+        """
+        if not skill_name:
+            return ""
+        
+        normalized = skill_name.lower().strip()
+        
+        # Apply normalization rules
+        for pattern, replacement in SkillMatcher.NORMALIZATION_RULES.items():
+            normalized = re.sub(pattern, replacement, normalized)
+        
+        # Remove extra whitespace
+        normalized = re.sub(r'\s+', ' ', normalized).strip()
+        
+        # Remove common prefixes/suffixes
+        normalized = re.sub(r'^(proficient|experienced|skilled|expert|knowledge|familiar)\s+', '', normalized)
+        normalized = re.sub(r'\s+(experience|proficiency|skills?|knowledge)$', '', normalized)
+        
+        return normalized
+    
+    @staticmethod
+    def get_synonyms(skill_name: str) -> Set[str]:
+        """
+        Get synonyms for a skill name.
+        
+        Args:
+            skill_name: Skill name
+            
+        Returns:
+            Set of synonyms including the skill name itself
+        """
+        normalized = SkillMatcher.normalize_skill_name(skill_name)
+        synonyms = {normalized}
+        
+        # Check direct synonym mapping
+        for key, values in SkillMatcher.SKILL_SYNONYMS.items():
+            if normalized == key or normalized in values:
+                synonyms.add(key)
+                synonyms.update(values)
+            elif normalized in [SkillMatcher.normalize_skill_name(k) for k in [key] + list(values)]:
+                synonyms.add(key)
+                synonyms.update(values)
+        
+        # Reverse lookup: find if normalized name matches any synonym
+        for key, values in SkillMatcher.SKILL_SYNONYMS.items():
+            if normalized == SkillMatcher.normalize_skill_name(key):
+                synonyms.add(key)
+                synonyms.update(values)
+        
+        return synonyms
+    
+    @staticmethod
+    def exact_match(skill1: Skill, skill2: Skill) -> bool:
+        """
+        Check if two skills are exact matches.
+        
+        Args:
+            skill1: First skill
+            skill2: Second skill
+            
+        Returns:
+            True if exact match
+        """
+        name1 = SkillMatcher.normalize_skill_name(skill1.name)
+        name2 = SkillMatcher.normalize_skill_name(skill2.name)
+        
+        return name1 == name2
+    
+    @staticmethod
+    def synonym_match(skill1: Skill, skill2: Skill) -> bool:
+        """
+        Check if two skills are synonyms.
+        
+        Args:
+            skill1: First skill
+            skill2: Second skill
+            
+        Returns:
+            True if synonym match
+        """
+        synonyms1 = SkillMatcher.get_synonyms(skill1.name)
+        synonyms2 = SkillMatcher.get_synonyms(skill2.name)
+        
+        return bool(synonyms1 & synonyms2)  # Check intersection
+    
+    @staticmethod
+    def fuzzy_match(skill1: Skill, skill2: Skill, threshold: float = None) -> Tuple[bool, float]:
+        """
+        Check if two skills match using fuzzy matching.
+        
+        Args:
+            skill1: First skill
+            skill2: Second skill
+            threshold: Similarity threshold (default: FUZZY_THRESHOLD)
+            
+        Returns:
+            Tuple of (is_match, similarity_score)
+        """
+        if threshold is None:
+            threshold = SkillMatcher.FUZZY_THRESHOLD
+        
+        name1 = SkillMatcher.normalize_skill_name(skill1.name)
+        name2 = SkillMatcher.normalize_skill_name(skill2.name)
+        
+        similarity = levenshtein_ratio(name1, name2)
+        
+        return similarity >= threshold, similarity
+    
+    @staticmethod
+    def category_match(skill1: Skill, skill2: Skill) -> bool:
+        """
+        Check if two skills match at category level.
+        
+        Args:
+            skill1: First skill
+            skill2: Second skill
+            
+        Returns:
+            True if same category
+        """
+        return skill1.category == skill2.category
+    
+    @staticmethod
+    def match_skills(skill1: Skill, skill2: Skill) -> Optional[SkillMatch]:
+        """
+        Match two skills and return match result.
+        
+        Args:
+            skill1: First skill
+            skill2: Second skill
+            
+        Returns:
+            SkillMatch if match found, None otherwise
+        """
+        # Try exact match first
+        if SkillMatcher.exact_match(skill1, skill2):
+            return SkillMatch(
+                skill=skill1,
+                match_type="exact",
+                confidence=SkillMatcher.EXACT_MATCH_CONFIDENCE
+            )
+        
+        # Try synonym match
+        if SkillMatcher.synonym_match(skill1, skill2):
+            return SkillMatch(
+                skill=skill1,
+                match_type="synonym",
+                confidence=SkillMatcher.SYNONYM_MATCH_CONFIDENCE
+            )
+        
+        # Try fuzzy match
+        is_fuzzy_match, similarity = SkillMatcher.fuzzy_match(skill1, skill2)
+        if is_fuzzy_match:
+            return SkillMatch(
+                skill=skill1,
+                match_type="fuzzy",
+                confidence=similarity * SkillMatcher.FUZZY_MATCH_CONFIDENCE
+            )
+        
+        # Try category match (only if categories match)
+        if SkillMatcher.category_match(skill1, skill2):
+            # Check if names are somewhat similar
+            name1 = SkillMatcher.normalize_skill_name(skill1.name)
+            name2 = SkillMatcher.normalize_skill_name(skill2.name)
+            similarity = levenshtein_ratio(name1, name2)
+            
+            if similarity >= 0.6:  # Lower threshold for category match
+                return SkillMatch(
+                    skill=skill1,
+                    match_type="category",
+                    confidence=similarity * SkillMatcher.CATEGORY_MATCH_CONFIDENCE
+                )
+        
+        return None
+    
+    @staticmethod
+    def find_matches(resume_skills: List[Skill], jd_skills: List[Skill]) -> List[SkillMatch]:
+        """
+        Find all matches between resume skills and JD skills.
+        
+        Args:
+            resume_skills: Skills from resume
+            jd_skills: Skills from job description
+            
+        Returns:
+            List of SkillMatch objects
+        """
+        matches = []
+        matched_resume_indices = set()
+        
+        # Try to match each JD skill with resume skills
+        for jd_skill in jd_skills:
+            best_match = None
+            best_match_index = -1
+            best_confidence = 0.0
+            
+            for idx, resume_skill in enumerate(resume_skills):
+                if idx in matched_resume_indices:
+                    continue
+                
+                match = SkillMatcher.match_skills(resume_skill, jd_skill)
+                
+                if match and match.confidence > best_confidence:
+                    best_match = match
+                    best_match_index = idx
+                    best_confidence = match.confidence
+            
+            if best_match:
+                matches.append(best_match)
+                matched_resume_indices.add(best_match_index)
+        
+        return matches
+    
+    @staticmethod
+    def find_missing_skills(resume_skills: List[Skill], jd_skills: List[Skill]) -> List[Skill]:
+        """
+        Find skills in JD that are not in resume.
+        
+        Args:
+            resume_skills: Skills from resume
+            jd_skills: Skills from job description
+            
+        Returns:
+            List of missing skills
+        """
+        # Build normalized sets for fast lookup
+        resume_normalized_names = {
+            SkillMatcher.normalize_skill_name(skill.name)
+            for skill in resume_skills
+        }
+        
+        # Track which resume skills have been matched
+        matched_resume_normalized = set()
+        
+        missing = []
+        seen_missing = set()
+        
+        # First pass: find all possible matches (not just greedy best)
+        for jd_skill in jd_skills:
+            normalized_name = SkillMatcher.normalize_skill_name(jd_skill.name)
+            
+            # Skip if already processed
+            if normalized_name in seen_missing:
+                continue
+            
+            # Check for exact normalized match first (fastest)
+            if normalized_name in resume_normalized_names:
+                # Mark this resume skill as matched
+                matched_resume_normalized.add(normalized_name)
+                continue
+            
+            # Try matching algorithm
+            is_matched = False
+            for resume_skill in resume_skills:
+                resume_normalized = SkillMatcher.normalize_skill_name(resume_skill.name)
+                
+                # Skip if this resume skill was already matched
+                if resume_normalized in matched_resume_normalized:
+                    continue
+                
+                if SkillMatcher.match_skills(resume_skill, jd_skill):
+                    is_matched = True
+                    matched_resume_normalized.add(resume_normalized)
+                    break
+            
+            if not is_matched:
+                missing.append(jd_skill)
+                seen_missing.add(normalized_name)
+        
+        return missing
+    
+    @staticmethod
+    def find_extra_skills(resume_skills: List[Skill], jd_skills: List[Skill]) -> List[Skill]:
+        """
+        Find skills in resume that are not in JD.
+        
+        Args:
+            resume_skills: Skills from resume
+            jd_skills: Skills from job description
+            
+        Returns:
+            List of extra skills
+        """
+        # Build normalized sets for fast lookup
+        jd_normalized_names = {
+            SkillMatcher.normalize_skill_name(skill.name)
+            for skill in jd_skills
+        }
+        
+        # Track which JD skills have been matched
+        matched_jd_normalized = set()
+        
+        extra = []
+        seen_extra = set()
+        
+        # First pass: find all possible matches (not just greedy best)
+        for resume_skill in resume_skills:
+            normalized_name = SkillMatcher.normalize_skill_name(resume_skill.name)
+            
+            # Skip if already processed
+            if normalized_name in seen_extra:
+                continue
+            
+            # Check for exact normalized match first (fastest)
+            if normalized_name in jd_normalized_names:
+                # Mark this JD skill as matched
+                matched_jd_normalized.add(normalized_name)
+                continue
+            
+            # Try matching algorithm
+            is_matched = False
+            for jd_skill in jd_skills:
+                jd_normalized = SkillMatcher.normalize_skill_name(jd_skill.name)
+                
+                # Skip if this JD skill was already matched
+                if jd_normalized in matched_jd_normalized:
+                    continue
+                
+                if SkillMatcher.match_skills(resume_skill, jd_skill):
+                    is_matched = True
+                    matched_jd_normalized.add(jd_normalized)
+                    break
+            
+            if not is_matched:
+                extra.append(resume_skill)
+                seen_extra.add(normalized_name)
+        
+        return extra
+
+
+# Global skill matcher instance
+skill_matcher = SkillMatcher()
+
