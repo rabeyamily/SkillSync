@@ -39,6 +39,9 @@ class User(Base):
     google_id = Column(String, unique=True, index=True, nullable=True)
     auth_provider = Column(String, default="email")  # "email" or "google"
     is_active = Column(Boolean, default=True)
+    email_verified = Column(Boolean, default=False)  # Email verification status
+    verification_code = Column(String, nullable=True)  # Email verification code
+    verification_code_expires = Column(DateTime, nullable=True)  # Code expiration time
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

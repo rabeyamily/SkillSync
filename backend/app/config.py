@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/auth/google/callback"
     
+    # Email Settings
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""  # Email address for sending
+    smtp_password: str = ""  # App password or SMTP password
+    smtp_from_email: str = ""  # From email address
+    smtp_from_name: str = "SkillSync"
+    email_verification_code_expiry_minutes: int = 15  # Verification code expires in 15 minutes
+    
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS origins string into list."""

@@ -9,8 +9,6 @@ from sqlalchemy.orm import Session
 from app.models.database import User
 import os
 
-# Password hashing
-
 # JWT settings - Import from config to ensure consistency
 from app.config import settings
 
@@ -65,19 +63,11 @@ def verify_token(token: str) -> Optional[dict]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except JWTError as e:
-        # Log the specific error for debugging
-        error_msg = str(e)
-        if "expired" in error_msg.lower():
-            print(f"Token verification failed: Token has expired - {error_msg}")
-        elif "invalid" in error_msg.lower():
-            print(f"Token verification failed: Invalid token - {error_msg}")
-        else:
-            print(f"Token verification failed: {error_msg}")
+    except JWTError:
         return None
 
 
-def create_user(db: Session, email: str, password: str, full_name: Optional[str] = None) -> User:
+def create_user(db: Session, email: str, password: str, full_name: Optional[str] = None, email_verified: bool = False) -> User:
     """Create a new user with email/password."""
     # Normalize email to lowercase for case-insensitive lookups
     email_lower = email.lower().strip()
@@ -86,7 +76,8 @@ def create_user(db: Session, email: str, password: str, full_name: Optional[str]
         email=email_lower,
         hashed_password=hashed_password,
         full_name=full_name,
-        auth_provider="email"
+        auth_provider="email",
+        email_verified=email_verified
     )
     db.add(db_user)
     db.commit()
@@ -94,7 +85,33 @@ def create_user(db: Session, email: str, password: str, full_name: Optional[str]
     return db_user
 
 
-def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
+def set_verification_code(db: Session, user: User, code: str, expires_at: datetime) -> None:
+    """Set verification code for a user."""
+    user.verification_code = code
+    user.verification_code_expires = expires_at
+    db.commit()
+    db.refresh(user)
+
+
+def verify_user_email(db: Session, user: User) -> None:
+    """Mark user's email as verified."""
+    user.email_verified = True
+    user.verification_code = None
+    user.verification_code_expires = None
+    db.commit()
+    db.refresh(user)
+
+
+def verify_user_email(db: Session, user: User) -> None:
+    """Mark user's email as verified."""
+    user.email_verified = True
+    user.verification_code = None
+    user.verification_code_expires = None
+    db.commit()
+    db.refresh(user)
+
+
+def authenticate_user(db: Session, email: str, password: str, require_verified: bool = True) -> Optional[User]:
     """Authenticate a user with email and password."""
     # Normalize email to lowercase for case-insensitive lookups
     email_lower = email.lower().strip()
@@ -108,6 +125,9 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
     password_valid = verify_password(password, user.hashed_password)
     if not password_valid:
         print(f"Authentication failed: Password verification failed for user: {email_lower}")
+        return None
+    if require_verified and not user.email_verified:
+        print(f"Authentication failed: Email not verified for user: {email_lower}")
         return None
     print(f"Authentication successful for user: {email_lower}")
     return user

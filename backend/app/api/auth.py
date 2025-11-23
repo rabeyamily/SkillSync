@@ -14,7 +14,15 @@ from app.services.auth_service import (
     create_access_token,
     verify_token,
     get_user_by_id,
-    get_user_by_email
+    get_user_by_email,
+    set_verification_code,
+    verify_user_email
+)
+from app.services.email_service import (
+    generate_verification_code,
+    send_verification_email,
+    get_verification_code_expiry,
+    is_verification_code_expired
 )
 from app.config import settings
 from app.utils.password_validation import validate_password
@@ -35,6 +43,15 @@ class SignupRequest(BaseModel):
     full_name: Optional[str] = None
 
 
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -48,6 +65,12 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: dict
+
+
+class SignupResponse(BaseModel):
+    message: str
+    email: str
+    requires_verification: bool = True
 
 
 class UserResponse(BaseModel):
@@ -121,9 +144,9 @@ def get_current_user(
         )
 
 
-@router.post("/signup", response_model=TokenResponse)
+@router.post("/signup", response_model=SignupResponse)
 async def signup(request: SignupRequest, db: Session = Depends(get_db)):
-    """Register a new user with email and password."""
+    """Register a new user with email and password. Sends verification code."""
     # Validate password with strong requirements
     is_valid, errors = validate_password(
         request.password,
@@ -142,25 +165,44 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     # Check if user already exists
     existing_user = get_user_by_email(db, request.email)
     if existing_user:
+        if existing_user.email_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        else:
+            # User exists but not verified - update password and resend code
+            from app.services.auth_service import get_password_hash
+            existing_user.hashed_password = get_password_hash(request.password)
+            if request.full_name:
+                existing_user.full_name = request.full_name
+            db.commit()
+            user = existing_user
+    else:
+        # Create new unverified user
+        user = create_user(db, request.email, request.password, request.full_name, email_verified=False)
+    
+    # Generate verification code
+    verification_code = generate_verification_code()
+    expires_at = get_verification_code_expiry()
+    
+    # Store verification code
+    set_verification_code(db, user, verification_code, expires_at)
+    
+    # Send verification email
+    email_sent = send_verification_email(user.email, verification_code)
+    
+    if not email_sent and not settings.debug:
+        # If email failed and not in debug mode, raise error
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email. Please try again later."
         )
     
-    # Create user
-    user = create_user(db, request.email, request.password, request.full_name)
-    
-    # Create token - JWT 'sub' field must be a string
-    access_token = create_access_token(data={"sub": str(user.id)})
-    
-    return TokenResponse(
-        access_token=access_token,
-        user={
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "auth_provider": user.auth_provider
-        }
+    return SignupResponse(
+        message="Registration successful! Please check your email for the verification code.",
+        email=user.email,
+        requires_verification=True
     )
 
 
@@ -184,12 +226,18 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
                 detail="This account was created with Google. Please sign in with Google instead.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        # Check if email is verified
+        if not user_by_email.email_verified:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Email not verified. Please check your email for the verification code.",
+            )
     else:
         print(f"[LOGIN] User not found in database")
     
     # Authenticate user (this checks email, password, and if user has password)
     print(f"[LOGIN] Attempting authentication...")
-    user = authenticate_user(db, email_lower, request.password)
+    user = authenticate_user(db, email_lower, request.password, require_verified=True)
     if not user:
         print(f"[LOGIN] Authentication failed - incorrect credentials")
         # Check if user exists to give better error message
@@ -281,6 +329,95 @@ async def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db))
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """Get current authenticated user information."""
     return UserResponse(**current_user)
+
+
+@router.post("/verify-email", response_model=TokenResponse)
+async def verify_email(request: VerifyEmailRequest, db: Session = Depends(get_db)):
+    """Verify user email with verification code."""
+    email_lower = request.email.lower().strip()
+    user = get_user_by_email(db, email_lower)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already verified"
+        )
+    
+    # Check if code matches
+    if not user.verification_code or user.verification_code != request.code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification code"
+        )
+    
+    # Check if code expired
+    if is_verification_code_expired(user.verification_code_expires):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired. Please request a new one."
+        )
+    
+    # Verify user email
+    verify_user_email(db, user)
+    
+    # Create token - JWT 'sub' field must be a string
+    access_token = create_access_token(data={"sub": str(user.id)})
+    
+    return TokenResponse(
+        access_token=access_token,
+        user={
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "auth_provider": user.auth_provider
+        }
+    )
+
+
+@router.post("/resend-verification")
+async def resend_verification(request: ResendVerificationRequest, db: Session = Depends(get_db)):
+    """Resend verification code to user's email."""
+    email_lower = request.email.lower().strip()
+    user = get_user_by_email(db, email_lower)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already verified"
+        )
+    
+    # Generate new verification code
+    verification_code = generate_verification_code()
+    expires_at = get_verification_code_expiry()
+    
+    # Store verification code
+    set_verification_code(db, user, verification_code, expires_at)
+    
+    # Send verification email
+    email_sent = send_verification_email(user.email, verification_code)
+    
+    if not email_sent and not settings.debug:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email. Please try again later."
+        )
+    
+    return {
+        "message": "Verification code has been sent to your email.",
+        "email": user.email
+    }
 
 
 @router.post("/verify-token")
