@@ -87,9 +87,18 @@ def get_current_user(
                 detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        # JWT 'sub' field is stored as string, convert back to int
+        user_id_str = payload.get("sub")
+        if user_id_str is None:
             print("get_current_user: No user_id in token payload")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+            )
+        try:
+            user_id: int = int(user_id_str)
+        except (ValueError, TypeError):
+            print(f"get_current_user: Invalid user_id format in token: {user_id_str}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
@@ -141,8 +150,8 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     # Create user
     user = create_user(db, request.email, request.password, request.full_name)
     
-    # Create token
-    access_token = create_access_token(data={"sub": user.id})
+    # Create token - JWT 'sub' field must be a string
+    access_token = create_access_token(data={"sub": str(user.id)})
     
     return TokenResponse(
         access_token=access_token,
@@ -200,8 +209,8 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     
     print(f"[LOGIN] Authentication successful for user: {user.email}")
     
-    # Create token
-    access_token = create_access_token(data={"sub": user.id})
+    # Create token - JWT 'sub' field must be a string
+    access_token = create_access_token(data={"sub": str(user.id)})
     
     return TokenResponse(
         access_token=access_token,
@@ -242,8 +251,8 @@ async def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db))
         # Create or get user
         user = create_or_get_google_user(db, google_id, email, name)
         
-        # Create access token
-        access_token = create_access_token(data={"sub": user.id})
+        # Create access token - JWT 'sub' field must be a string
+        access_token = create_access_token(data={"sub": str(user.id)})
         
         return TokenResponse(
             access_token=access_token,

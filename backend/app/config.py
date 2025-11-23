@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # Authentication Settings
     jwt_secret_key: str = "your-secret-key-change-in-production"  # Change in production!
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+    jwt_access_token_expire_minutes: int = 60 * 24 * 30  # 30 days (increased from 7 days)
     
     # Google OAuth Settings
     google_client_id: str = ""

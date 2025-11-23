@@ -16,7 +16,7 @@ from app.config import settings
 
 SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = settings.jwt_algorithm
-ACCESS_TOKEN_EXPIRE_DAYS = settings.jwt_access_token_expire_minutes / (60 * 24)  # Convert minutes to days
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.jwt_access_token_expire_minutes
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -53,7 +53,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+        # Use minutes directly for more precise expiration
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -64,7 +65,15 @@ def verify_token(token: str) -> Optional[dict]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except JWTError:
+    except JWTError as e:
+        # Log the specific error for debugging
+        error_msg = str(e)
+        if "expired" in error_msg.lower():
+            print(f"Token verification failed: Token has expired - {error_msg}")
+        elif "invalid" in error_msg.lower():
+            print(f"Token verification failed: Invalid token - {error_msg}")
+        else:
+            print(f"Token verification failed: {error_msg}")
         return None
 
 
