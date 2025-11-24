@@ -65,10 +65,12 @@ class Settings(BaseSettings):
         """Parse allowed extensions string into list."""
         return [ext.strip() for ext in self.allowed_extensions.split(",")]
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+        "extra": "ignore"  # Ignore extra environment variables
+    }
 
 
 # Global settings instance
