@@ -2,11 +2,11 @@
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["cd frontend && npm install --legacy-peer-deps"]
+cmds = ["npm install --legacy-peer-deps"]
 
 [phases.build]
-cmds = ["cd frontend && npm run build"]
+cmds = ["npm run build"]
 
 [start]
-cmd = "cd frontend && npm start"
+cmd = "npm start"
 
