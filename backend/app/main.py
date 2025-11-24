@@ -51,3 +51,13 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
 
+
+@app.get("/debug/cors")
+async def debug_cors():
+    """Debug endpoint to check CORS configuration."""
+    return {
+        "cors_origins": settings.cors_origins,
+        "cors_origins_list": settings.cors_origins_list,
+        "debug": settings.debug
+    }
+
