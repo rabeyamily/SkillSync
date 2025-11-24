@@ -407,7 +407,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
                 {/* Primary Action Button */}
                 <button
                   type="submit"
-                  disabled={loading || !email || !password || (!isLogin && passwordValidation && !passwordValidation.isValid)}
+                  disabled={loading || !email || !password || (!isLogin && passwordValidation !== null && !passwordValidation.isValid)}
                   className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Agree & Join'}
