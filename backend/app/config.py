@@ -3,6 +3,7 @@ Application settings and configuration.
 """
 from pydantic_settings import BaseSettings
 from typing import List
+import os
 
 
 class Settings(BaseSettings):
@@ -75,4 +76,12 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+# Debug: Print if OpenAI API key is loaded
+print(f"[CONFIG DEBUG] OpenAI API Key loaded: {bool(settings.openai_api_key)}")
+print(f"[CONFIG DEBUG] OpenAI API Key length: {len(settings.openai_api_key) if settings.openai_api_key else 0}")
+print(f"[CONFIG DEBUG] Environment OPENAI_API_KEY exists: {'OPENAI_API_KEY' in os.environ}")
+print(f"[CONFIG DEBUG] Environment openai_api_key exists: {'openai_api_key' in os.environ}")
+if 'OPENAI_API_KEY' in os.environ:
+    print(f"[CONFIG DEBUG] OPENAI_API_KEY from env length: {len(os.environ['OPENAI_API_KEY'])}")
 
