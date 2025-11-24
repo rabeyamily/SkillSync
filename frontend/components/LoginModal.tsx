@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Logo from './Logo';
-import { login, signup, googleAuth } from '@/services/api';
+import { login, signup, googleAuth, verifyEmail, resendVerificationCode } from '@/services/api';
 import { GoogleLogin } from '@react-oauth/google';
 import { validatePassword, getPasswordRequirements, type PasswordValidationResult } from '@/utils/passwordValidation';
 
@@ -18,6 +18,9 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
   const [passwordValidation, setPasswordValidation] = useState<PasswordValidationResult | null>(null);
   const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -65,13 +68,24 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
     try {
       if (isLogin) {
         await login(email, password);
+        // Success - notify parent and close modal
+        setLoading(false);
+        onSuccess?.();
+        onClose();
       } else {
-        await signup(email, password);
+        // Signup - show verification screen
+        const result = await signup(email, password);
+        if (result.requires_verification) {
+          setPendingEmail(email);
+          setShowVerification(true);
+          setLoading(false);
+        } else {
+          // If no verification needed (shouldn't happen with new flow)
+          setLoading(false);
+          onSuccess?.();
+          onClose();
+        }
       }
-      // Success - notify parent and close modal
-      setLoading(false);
-      onSuccess?.();
-      onClose();
     } catch (err: any) {
       console.error('Login/Signup error:', err);
       console.error('Error response data:', err.response?.data);
@@ -145,6 +159,41 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
     onClose();
   };
 
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await verifyEmail(pendingEmail, verificationCode);
+      setLoading(false);
+      onSuccess?.();
+      onClose();
+    } catch (err: any) {
+      let errorMessage = 'Invalid verification code. Please try again.';
+      if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      }
+      setError(errorMessage);
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await resendVerificationCode(pendingEmail);
+      setError('');
+      alert('Verification code has been resent to your email.');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.detail || 'Failed to resend code. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleClose = () => {
     setEmail('');
     setPassword('');
@@ -154,6 +203,9 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
     setPasswordValidation(null);
     setShowPasswordRequirements(false);
     setRememberMe(false);
+    setShowVerification(false);
+    setVerificationCode('');
+    setPendingEmail('');
     onClose();
   };
 
@@ -197,8 +249,72 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
                 </div>
               )}
 
-              {/* Single Column Form - LinkedIn Style */}
-              <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Verification Code Screen */}
+              {showVerification ? (
+                <form onSubmit={handleVerifyCode} className="space-y-4">
+                  <div className="text-center mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                      Verify Your Email
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      We've sent a verification code to <strong>{pendingEmail}</strong>
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="verification-code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Verification Code
+                    </label>
+                    <input
+                      id="verification-code"
+                      type="text"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      required
+                      maxLength={6}
+                      className="block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-600 focus:ring-blue-600 dark:bg-gray-700 dark:text-white sm:text-sm transition-colors px-3 py-2.5 text-center text-2xl tracking-widest"
+                      placeholder="000000"
+                      autoFocus
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || verificationCode.length !== 6}
+                    className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loading ? 'Verifying...' : 'Verify Email'}
+                  </button>
+
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={handleResendCode}
+                      disabled={loading}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+                    >
+                      Resend verification code
+                    </button>
+                  </div>
+
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowVerification(false);
+                        setVerificationCode('');
+                        setPendingEmail('');
+                        setError('');
+                      }}
+                      className="text-sm text-gray-600 dark:text-gray-400 hover:underline"
+                    >
+                      Back to sign up
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* Single Column Form - LinkedIn Style */
+                <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email Field */}
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
@@ -343,6 +459,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
                   </button>
                 </div>
               </form>
+              )}
             </div>
           </div>
         </div>

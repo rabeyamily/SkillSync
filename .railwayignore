@@ -1,0 +1,52 @@
+# Railway ignore file - files to exclude from deployment
+
+# Development files
+.env
+.env.local
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Database (local SQLite)
+backend/data/*.db
+backend/data/*.db-journal
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend build (if deploying separately)
+frontend/.next/
+frontend/node_modules/
+frontend/.vercel/
+
+# Documentation
+*.md
+!README.md
+
