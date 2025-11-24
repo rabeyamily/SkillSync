@@ -61,3 +61,15 @@ async def debug_cors():
         "debug": settings.debug
     }
 
+
+@app.get("/debug/config")
+async def debug_config():
+    """Debug endpoint to check configuration."""
+    return {
+        "openai_api_key_set": bool(settings.openai_api_key and settings.openai_api_key != ""),
+        "openai_api_key_length": len(settings.openai_api_key) if settings.openai_api_key else 0,
+        "openai_api_key_preview": settings.openai_api_key[:10] + "..." if settings.openai_api_key and len(settings.openai_api_key) > 10 else "NOT_SET",
+        "llm_model": settings.llm_model,
+        "debug": settings.debug
+    }
+
