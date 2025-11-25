@@ -2,10 +2,9 @@
 PDF Report Generation Service using ReportLab.
 """
 from io import BytesIO
-from typing import Optional
 from datetime import datetime
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import (
@@ -14,13 +13,10 @@ from reportlab.platypus import (
     Spacer,
     Table,
     TableStyle,
-    PageBreak,
-    Image,
     ListFlowable,
     ListItem,
 )
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
-from reportlab.pdfgen import canvas
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 
 from app.models.schemas import SkillGapReport, FitScoreBreakdown, GapAnalysis
 
@@ -229,84 +225,6 @@ class PDFReportGenerator:
             interpretation_para = Paragraph(f"<i>{interpretation}</i>", self.styles["ReportBodyText"])
             elements.append(interpretation_para)
             elements.append(Spacer(1, 0.2 * inch))
-
-        return elements
-
-    def _create_fit_score_section(self, fit_score: FitScoreBreakdown) -> list:
-        """Create fit score breakdown section."""
-        elements = []
-
-        header = Paragraph("Fit Score Breakdown", self.styles["SectionHeader"])
-        elements.append(header)
-
-        # Score table
-        score_data = [
-            ["Category", "Score (%)", "Weight"],
-            [
-                "Technical Skills",
-                f"{fit_score.technical_score:.1f}%",
-                f"{fit_score.technical_weight * 100:.0f}%",
-            ],
-            [
-                "Soft Skills",
-                f"{fit_score.soft_skills_score:.1f}%",
-                f"{fit_score.soft_skills_weight * 100:.0f}%",
-            ],
-        ]
-
-        if fit_score.education_score is not None:
-            score_data.append(
-                ["Education", f"{fit_score.education_score:.1f}%", "N/A"]
-            )
-
-        if fit_score.certification_score is not None:
-            score_data.append(
-                ["Certifications", f"{fit_score.certification_score:.1f}%", "N/A"]
-            )
-
-        score_table = Table(score_data, colWidths=[3 * inch, 1.5 * inch, 1.5 * inch])
-        score_table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e40af")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, 0), 12),
-                    ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                    ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
-                ]
-            )
-        )
-        elements.append(score_table)
-        elements.append(Spacer(1, 0.2 * inch))
-
-        # Statistics
-        stats_data = [
-            ["Metric", "Count"],
-            ["Matched Skills", str(fit_score.matched_count)],
-            ["Missing Skills", str(fit_score.missing_count)],
-            ["Total JD Skills", str(fit_score.total_jd_skills)],
-        ]
-
-        stats_table = Table(stats_data, colWidths=[3 * inch, 3 * inch])
-        stats_table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#475569")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, 0), 12),
-                    ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                ]
-            )
-        )
-        elements.append(stats_table)
-        elements.append(Spacer(1, 0.3 * inch))
 
         return elements
 
@@ -537,106 +455,6 @@ class PDFReportGenerator:
         elements.append(skill_table)
         elements.append(Spacer(1, 0.1 * inch))
         return elements
-
-    def _create_action_items_section(self, report: SkillGapReport) -> list:
-        """Create actionable items section."""
-        elements = []
-
-        header = Paragraph("Action Items", self.styles["SectionHeader"])
-        elements.append(header)
-
-        action_items = []
-
-        # Based on missing skills
-        if report.gap_analysis.missing_skills:
-            top_missing = report.gap_analysis.missing_skills[:5]
-            missing_names = ", ".join([skill.name for skill in top_missing])
-            action_items.append(
-                f"<b>Priority:</b> Focus on learning these top missing skills: {missing_names}"
-            )
-
-        # Based on fit score
-        overall_score = report.fit_score.overall_score
-        if overall_score < 60:
-            action_items.append(
-                "<b>Immediate:</b> Consider taking online courses or getting certifications "
-                "to strengthen your profile in the required skill areas."
-            )
-        elif overall_score < 80:
-            action_items.append(
-                "<b>Enhancement:</b> Work on the missing skills identified above to improve "
-                "your overall fit score."
-            )
-
-        # Based on match quality
-        matched_skills = report.gap_analysis.matched_skills
-        fuzzy_matches = [m for m in matched_skills if m.match_type == "fuzzy"]
-        if len(fuzzy_matches) > len(matched_skills) * 0.3:
-            action_items.append(
-                "<b>Resume Optimization:</b> Update your resume to use the exact terminology "
-                "from the job description to improve keyword matching."
-            )
-
-        # Based on extra skills
-        if report.gap_analysis.extra_skills:
-            action_items.append(
-                "<b>Highlight:</b> Emphasize your additional skills in your cover letter "
-                "and interviews to differentiate yourself from other candidates."
-            )
-
-        if not action_items:
-            action_items.append(
-                "Review the recommendations above and focus on areas where you can improve "
-                "your skill alignment."
-            )
-
-        item_paragraphs = [
-            Paragraph(item, self.styles["ReportBodyText"]) for item in action_items
-        ]
-        item_list = ListFlowable(
-            item_paragraphs,
-            bulletType="1",
-            start="1",
-            bulletFontName="Helvetica-Bold",
-            leftIndent=18,
-        )
-        elements.append(item_list)
-
-        elements.append(Spacer(1, 0.3 * inch))
-
-        return elements
-
-    def _build_bullet_list(
-        self, items: list[str], bullet_char: str = "•", left_indent: int = 12
-    ) -> ListFlowable:
-        """Helper to build a bullet list from strings."""
-        bullet_style = self.styles["ReportBodyText"]
-        flowables = [
-            ListItem(
-                Paragraph(item, bullet_style),
-                leftIndent=left_indent,
-                bulletFontName="Helvetica-Bold",
-            )
-            for item in items
-        ]
-        return ListFlowable(
-            flowables,
-            bulletType="bullet",
-            bulletFontName="Helvetica-Bold",
-            bulletChar=bullet_char,
-            leftIndent=left_indent,
-        )
-
-
-class FooterCanvas(canvas.Canvas):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def drawString(self, x, y, text):
-        try:
-            super().drawString(x, y, text)
-        except Exception:
-            super().drawString(x, y, text.encode("latin-1", "replace").decode("latin-1"))
 
 
 # Global PDF generator instance

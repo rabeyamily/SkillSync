@@ -52,24 +52,25 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@app.get("/debug/cors")
-async def debug_cors():
-    """Debug endpoint to check CORS configuration."""
-    return {
-        "cors_origins": settings.cors_origins,
-        "cors_origins_list": settings.cors_origins_list,
-        "debug": settings.debug
-    }
+# Debug endpoints - only available in debug mode
+if settings.debug:
+    @app.get("/debug/cors")
+    async def debug_cors():
+        """Debug endpoint to check CORS configuration."""
+        return {
+            "cors_origins": settings.cors_origins,
+            "cors_origins_list": settings.cors_origins_list,
+            "debug": settings.debug
+        }
 
-
-@app.get("/debug/config")
-async def debug_config():
-    """Debug endpoint to check configuration."""
-    return {
-        "openai_api_key_set": bool(settings.openai_api_key and settings.openai_api_key != ""),
-        "openai_api_key_length": len(settings.openai_api_key) if settings.openai_api_key else 0,
-        "openai_api_key_preview": settings.openai_api_key[:10] + "..." if settings.openai_api_key and len(settings.openai_api_key) > 10 else "NOT_SET",
-        "llm_model": settings.llm_model,
-        "debug": settings.debug
-    }
+    @app.get("/debug/config")
+    async def debug_config():
+        """Debug endpoint to check configuration."""
+        return {
+            "openai_api_key_set": bool(settings.openai_api_key and settings.openai_api_key != ""),
+            "openai_api_key_length": len(settings.openai_api_key) if settings.openai_api_key else 0,
+            "openai_api_key_preview": settings.openai_api_key[:10] + "..." if settings.openai_api_key and len(settings.openai_api_key) > 10 else "NOT_SET",
+            "llm_model": settings.llm_model,
+            "debug": settings.debug
+        }
 

@@ -14,9 +14,3 @@ router.include_router(extract.router, prefix="/extract", tags=["extract"])
 router.include_router(analyze.router, prefix="/analyze", tags=["analyze"])
 router.include_router(report.router, prefix="/report", tags=["report"])
 
-
-@router.get("/test")
-async def test_endpoint():
-    """Test endpoint to verify API is working."""
-    return {"message": "API is working!", "status": "success"}
-

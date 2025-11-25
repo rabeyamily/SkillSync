@@ -7,7 +7,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.models.database import get_db, User
-from app.services.auth_service import verify_password
 
 def check_user(email: str):
     """Check user account details."""
