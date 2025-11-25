@@ -115,7 +115,7 @@ export interface FitScoreBreakdown {
 export interface CourseRecommendation {
   skill_name: string;
   category: string;
-  linkedin_learning_url: string;
+  course_url: string;
   platform: string;
 }
 

@@ -389,7 +389,7 @@ class PDFReportGenerator:
         elements.append(header)
 
         # Description
-        desc_text = "LinkedIn Learning courses available through NYU to help you develop missing skills."
+        desc_text = "Coursera courses tailored to your missing skills."
         desc_para = Paragraph(desc_text, self.styles["ReportBodyText"])
         elements.append(desc_para)
         elements.append(Spacer(1, 0.15 * inch))
@@ -408,8 +408,8 @@ class PDFReportGenerator:
             for rec in course_recommendations:
                 skill_name = rec.get("skill_name", "N/A")
                 category = rec.get("category", "other").replace("_", " ").title()
-                platform = rec.get("platform", "LinkedIn Learning")
-                link = rec.get("linkedin_learning_url", "")
+                platform = rec.get("platform", "Coursera")
+                link = rec.get("course_url", "")
                 
                 # Truncate link for display (show first 50 chars)
                 link_display = link[:50] + "..." if len(link) > 50 else link
@@ -446,7 +446,7 @@ class PDFReportGenerator:
             elements.append(Spacer(1, 0.2 * inch))
             
             # Note about links
-            note_text = "<i>Note: Click on the links above to access the recommended courses on LinkedIn Learning.</i>"
+            note_text = "<i>Note: Click on the links above to access the recommended courses on Coursera.</i>"
             note_para = Paragraph(note_text, self.styles["ReportBodyText"])
             elements.append(note_para)
             elements.append(Spacer(1, 0.3 * inch))

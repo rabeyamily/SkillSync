@@ -12,17 +12,21 @@ class RecommendationsGenerator:
     @staticmethod
     def _generate_linkedin_learning_url(skill_name: str) -> str:
         """
-        Generate LinkedIn Learning search URL for a skill.
+        Generate Coursera search URL for a skill. (Currently using Coursera instead of LinkedIn Learning)
         
         Args:
             skill_name: Name of the skill to search for
             
         Returns:
-            LinkedIn Learning search URL
+            Coursera search URL
         """
-        # URL encode the skill name for the search query
         encoded_skill = quote(skill_name)
-        return f"https://www.linkedin.com/learning/search?keywords={encoded_skill}"
+        return f"https://www.coursera.org/search?query={encoded_skill}"
+
+    @staticmethod
+    def _generate_coursera_search_url(skill_name: str) -> str:
+        """Generate a Coursera search URL; kept separate for clarity/compat."""
+        return RecommendationsGenerator._generate_linkedin_learning_url(skill_name)
     
     @staticmethod
     def generate_recommendations(
@@ -86,7 +90,7 @@ class RecommendationsGenerator:
                 ]
             ]
             
-            # Technical skills recommendations with LinkedIn Learning links
+            # Technical skills recommendations with Coursera links
             if technical_missing:
                 top_missing = technical_missing[:5]  # Top 5 missing technical skills
                 skill_names = [s.name for s in top_missing]
@@ -94,7 +98,7 @@ class RecommendationsGenerator:
                 
                 # Create recommendation with links
                 rec_text = f"📚 Prioritize learning these technical skills: {', '.join(skill_names)}. "
-                rec_text += "Check out LinkedIn Learning courses (available through NYU) to build proficiency."
+                rec_text += "Search Coursera for high-quality courses to build proficiency."
                 recommendations.append(rec_text)
             
             # Soft skills recommendations
@@ -173,53 +177,26 @@ class RecommendationsGenerator:
         gap_analysis: GapAnalysis
     ) -> List[Dict[str, Any]]:
         """
-        Generate course recommendations with LinkedIn Learning links for missing skills.
+        Generate course recommendations with Coursera links for all missing skills.
         
         Args:
             gap_analysis: GapAnalysis result
             
         Returns:
-            List of course recommendation dictionaries with skill name and LinkedIn Learning URL
+            List of course recommendation dictionaries with skill name and Coursera search URL
+            for ALL missing skills (no prioritization or limits)
         """
         course_recommendations = []
         missing_skills = gap_analysis.missing_skills
         
-        if missing_skills:
-            # Prioritize technical skills, but include all missing skills
-            technical_categories = [
-                "programming_languages", "frameworks_libraries", "tools_platforms",
-                "databases", "cloud_services", "devops", "software_architecture",
-                "machine_learning", "data_science", "blockchain", "cybersecurity"
-            ]
-            
-            # Separate technical and non-technical skills
-            # Convert category to string for comparison (handles both enum and string)
-            technical_missing = [
-                s for s in missing_skills
-                if str(s.category) in technical_categories
-            ]
-            
-            non_technical_missing = [
-                s for s in missing_skills
-                if str(s.category) not in technical_categories
-            ]
-            
-            # Prioritize technical skills, but include up to 10 total
-            # First add technical skills (up to 8)
-            top_technical = technical_missing[:8]
-            # Then add non-technical skills (up to 2 more to reach 10 total)
-            top_non_technical = non_technical_missing[:2]
-            
-            # Combine and limit to 10
-            top_missing = (top_technical + top_non_technical)[:10]
-            
-            for skill in top_missing:
-                course_recommendations.append({
-                    "skill_name": skill.name,
-                    "category": str(skill.category) if skill.category else "other",
-                    "linkedin_learning_url": RecommendationsGenerator._generate_linkedin_learning_url(skill.name),
-                    "platform": "LinkedIn Learning"
-                })
+        # Generate recommendations for ALL missing skills without any prioritization or limits
+        for skill in missing_skills:
+            course_recommendations.append({
+                "skill_name": skill.name,
+                "category": str(skill.category) if skill.category else "other",
+                "course_url": RecommendationsGenerator._generate_coursera_search_url(skill.name),
+                "platform": "Coursera"
+            })
         
         return course_recommendations
 

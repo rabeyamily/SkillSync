@@ -356,26 +356,44 @@ export default function Home() {
           throw new Error("Extraction is taking too long. Please try again.");
         }
         
-        const fallbackResumeText = sessionStorage.getItem(`resume_text_${resumeId}`) || sessionStorage.getItem(`resume_text`);
-        const fallbackJdText = sessionStorage.getItem(`jd_text_${jdId}`) || sessionStorage.getItem(`jd_text`);
+        // Check if error is about file not found - try to fallback to text
+        const errorMessage = extractErr.response?.data?.detail || extractErr.message || '';
+        const isFileNotFoundError = errorMessage.includes('File not found') || errorMessage.includes('session expired');
         
-        if (fallbackResumeText && fallbackJdText) {
-          const retryController = new AbortController();
-          let retryTimeoutId: NodeJS.Timeout | null = null;
-          retryTimeoutId = setTimeout(() => retryController.abort(), extractTimeout);
+        if (isFileNotFoundError) {
+          // Try to get text from sessionStorage as fallback
+          const fallbackResumeText = sessionStorage.getItem(`resume_text_${resumeId}`) 
+            || sessionStorage.getItem(`resume_text`) 
+            || sessionStorage.getItem('current_resume_text');
+          const fallbackJdText = sessionStorage.getItem(`jd_text_${jdId}`) 
+            || sessionStorage.getItem(`jd_text`) 
+            || sessionStorage.getItem('current_jd_text');
           
-          try {
-            extractResponse = await apiClient.post("/api/extract/extract", {
-              resume_text: fallbackResumeText,
-              job_description_text: fallbackJdText,
-            }, {
-              signal: retryController.signal,
-              timeout: extractTimeout,
-            });
-            if (retryTimeoutId) clearTimeout(retryTimeoutId);
-          } catch (retryErr: any) {
-            if (retryTimeoutId) clearTimeout(retryTimeoutId);
-            throw retryErr;
+          if (fallbackResumeText || fallbackJdText) {
+            const retryController = new AbortController();
+            let retryTimeoutId: NodeJS.Timeout | null = null;
+            retryTimeoutId = setTimeout(() => retryController.abort(), extractTimeout);
+            
+            try {
+              const fallbackRequest: any = {};
+              if (fallbackResumeText) {
+                fallbackRequest.resume_text = fallbackResumeText;
+              }
+              if (fallbackJdText) {
+                fallbackRequest.job_description_text = fallbackJdText;
+              }
+              
+              extractResponse = await apiClient.post("/api/extract/extract", fallbackRequest, {
+                signal: retryController.signal,
+                timeout: extractTimeout,
+              });
+              if (retryTimeoutId) clearTimeout(retryTimeoutId);
+            } catch (retryErr: any) {
+              if (retryTimeoutId) clearTimeout(retryTimeoutId);
+              throw new Error("File session expired. Please re-upload your files and try again.");
+            }
+          } else {
+            throw new Error("File session expired. Please re-upload your resume and job description.");
           }
         } else {
           throw extractErr;
@@ -1412,8 +1430,8 @@ function CourseRecommendationsSection({
   recommendations: CourseRecommendation[];
   missingSkills: Skill[];
 }) {
-  const generateLinkedInLearningUrl = (skillName: string) => {
-    return `https://www.linkedin.com/learning/search?keywords=${encodeURIComponent(skillName)}`;
+  const generateCourseraSearchUrl = (skillName: string) => {
+    return `https://www.coursera.org/search?query=${encodeURIComponent(skillName)}`;
   };
 
   // If we have course recommendations, show them
@@ -1421,9 +1439,9 @@ function CourseRecommendationsSection({
     return (
       <div className="rounded-lg bg-gradient-to-br from-white to-blue-50/30 p-6 shadow-sm ring-1 ring-blue-200 dark:from-gray-800 dark:to-blue-950/20 dark:ring-blue-600/30">
         <div className="flex items-center mb-4">
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ background: 'linear-gradient(to bottom right, #0077b5, #00a0dc)' }}>
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ background: 'linear-gradient(to bottom right, #0369a1, #0ea5e9)' }}>
             <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 5.5v9h2v-3.5l2.5 3.5H17l-3.5-4.5L17 7.5h-2.5L12 10.5V7.5h-2z" />
             </svg>
           </div>
           <div>
@@ -1431,7 +1449,7 @@ function CourseRecommendationsSection({
               Recommended Courses
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              LinkedIn Learning courses available through NYU to help you develop missing skills
+              Coursera courses tailored to each missing skill from your analysis
             </p>
           </div>
         </div>
@@ -1440,7 +1458,7 @@ function CourseRecommendationsSection({
           {recommendations.map((rec, index) => (
             <a
               key={index}
-              href={rec.linkedin_learning_url}
+              href={rec.course_url}
               target="_blank"
               rel="noopener noreferrer"
               className="group block p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all duration-200"
@@ -1495,9 +1513,9 @@ function CourseRecommendationsSection({
     return (
       <div className="rounded-lg bg-gradient-to-br from-white to-blue-50/30 p-6 shadow-sm ring-1 ring-blue-200 dark:from-gray-800 dark:to-blue-950/20 dark:ring-blue-600/30">
         <div className="flex items-center mb-4">
-          <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ background: 'linear-gradient(to bottom right, #0077b5, #00a0dc)' }}>
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ background: 'linear-gradient(to bottom right, #0369a1, #0ea5e9)' }}>
             <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 5.5v9h2v-3.5l2.5 3.5H17l-3.5-4.5L17 7.5h-2.5L12 10.5V7.5h-2z" />
             </svg>
           </div>
           <div>
@@ -1505,7 +1523,7 @@ function CourseRecommendationsSection({
               Recommended Courses
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              LinkedIn Learning courses available through NYU to help you develop missing skills
+              Coursera courses to help you develop the top missing skills
             </p>
           </div>
         </div>
@@ -1514,7 +1532,7 @@ function CourseRecommendationsSection({
           {topMissing.map((skill, index) => (
             <a
               key={index}
-              href={generateLinkedInLearningUrl(skill.name)}
+              href={generateCourseraSearchUrl(skill.name)}
               target="_blank"
               rel="noopener noreferrer"
               className="group block p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all duration-200"
@@ -1543,7 +1561,7 @@ function CourseRecommendationsSection({
                 </svg>
               </div>
               <div className="mt-3 flex items-center text-xs text-blue-600 dark:text-blue-400">
-                <span className="font-medium">LinkedIn Learning</span>
+                <span className="font-medium">Coursera</span>
                 <svg
                   className="w-3 h-3 ml-1"
                   fill="currentColor"

@@ -55,7 +55,7 @@ async def generate_pdf_report(request: AnalyzeGapRequest):
             include_certifications=True
         )
         
-        # Generate course recommendations with LinkedIn Learning links
+        # Generate course recommendations with Coursera links
         course_recommendations = recommendations_generator.generate_course_recommendations(
             gap_analysis=gap_analysis
         )

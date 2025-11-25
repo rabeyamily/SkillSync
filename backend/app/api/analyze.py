@@ -64,7 +64,7 @@ async def analyze_gap(request: AnalyzeGapRequest):
             overall_score=fit_score.overall_score
         )
         
-        # Generate course recommendations with LinkedIn Learning links
+        # Generate course recommendations with Coursera links
         course_recommendations = recommendations_generator.generate_course_recommendations(
             gap_analysis=gap_analysis
         )
