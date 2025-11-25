@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import FileUpload from "@/components/FileUpload";
-import apiClient from "@/services/api";
+import apiClient, { isAuthenticated, getProfile, getCV, downloadCV, uploadFile } from "@/services/api";
 import {
   SkillGapReport,
   SkillMatch,
@@ -22,7 +22,9 @@ import { generatePDFReport, generatePDFReportFromIds } from "@/services/api";
 
 export default function Home() {
   const [resumeFileId, setResumeFileId] = useState<string | null>(null);
+  const [resumeFileName, setResumeFileName] = useState<string | null>(null);
   const [resumeTextId, setResumeTextId] = useState<string | null>(null);
+  const [cvInfo, setCvInfo] = useState<{ filename: string; file_type: string } | null>(null);
   const [jdFileId, setJdFileId] = useState<string | null>(null);
   const [jdTextId, setJdTextId] = useState<string | null>(null);
   const [canAnalyze, setCanAnalyze] = useState(false);
@@ -88,12 +90,20 @@ export default function Home() {
 
   const handleResumeUpload = (fileId: string, filename: string) => {
     setResumeFileId(fileId);
+    setResumeFileName(filename);
     setResumeTextId(null);
   };
 
   const handleResumeText = (textId: string) => {
     setResumeTextId(textId);
     setResumeFileId(null);
+    setResumeFileName(null);
+  };
+
+  const handleResumeClear = () => {
+    setResumeFileId(null);
+    setResumeFileName(null);
+    setResumeTextId(null);
   };
 
   const handleJDUpload = (fileId: string, filename: string) => {
@@ -164,6 +174,114 @@ export default function Home() {
       console.warn('Failed to restore report from sessionStorage:', e);
     }
   }, []); // Only run on mount
+
+  // Auto-load profile CV if user is logged in and has uploaded a CV
+  useEffect(() => {
+    const loadProfileCV = async () => {
+      // Only load if user is authenticated and no resume is already set
+      if (!isAuthenticated() || resumeFileId || resumeTextId) {
+        return;
+      }
+
+      try {
+        // Check if user has a CV in their profile
+        const profile = await getProfile();
+        if (!profile.has_cv) {
+          return; // No CV uploaded in profile
+        }
+
+        // Get CV info first to determine filename and type
+        const cvInfo = await getCV();
+        const filename = cvInfo.filename || `resume.${cvInfo.file_type || 'pdf'}`;
+        
+        // Download the CV from profile
+        const cvBlob = await downloadCV();
+        
+        // Determine MIME type from file type
+        const mimeTypeMap: Record<string, string> = {
+          'pdf': 'application/pdf',
+          'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'txt': 'text/plain'
+        };
+        const mimeType = mimeTypeMap[cvInfo.file_type] || cvBlob.type || 'application/pdf';
+        
+        // Convert blob to File
+        const cvFile = new File([cvBlob], filename, {
+          type: mimeType,
+        });
+
+        // Upload the CV to the analysis endpoint
+        const uploadResponse = await uploadFile(cvFile, "resume");
+        
+        // Set the resume file ID and filename
+        setResumeFileId(uploadResponse.file_id);
+        setResumeFileName(filename);
+        setCvInfo(cvInfo);
+        setResumeTextId(null);
+        
+        console.log('Profile CV automatically loaded:', uploadResponse.file_id, filename);
+      } catch (err: any) {
+        // Silently fail - user can still upload manually
+        console.log('Could not auto-load profile CV:', err.message);
+      }
+    };
+
+    // Handle auth changes (login/logout)
+    const handleAuthChanged = () => {
+      if (isAuthenticated()) {
+        // User logged in - load CV if not already loaded
+        if (!resumeFileId && !resumeTextId) {
+          loadProfileCV();
+        }
+      } else {
+        // User logged out - clear CV immediately
+        setResumeFileId(null);
+        setResumeTextId(null);
+        setResumeFileName(null);
+        setCvInfo(null);
+        
+        // Also clear sessionStorage data related to resume
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('resume_file_id');
+          sessionStorage.removeItem('current_resume_id');
+          sessionStorage.removeItem('resume_text');
+          sessionStorage.removeItem('current_resume_text');
+          sessionStorage.removeItem('last_resume_skills');
+          sessionStorage.removeItem('last_report_resume_id');
+          // Clear all resume-related sessionStorage keys
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (key && (key.startsWith('resume_') || key.startsWith('resume_text_'))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(key => sessionStorage.removeItem(key));
+        }
+      }
+    };
+
+    // Listen for auth-changed events
+    window.addEventListener('auth-changed', handleAuthChanged);
+    
+    // Listen for storage changes (login/logout from other tabs or same window)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'auth_token') {
+        handleAuthChanged();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // Load CV on mount if user is already authenticated
+    if (isAuthenticated()) {
+      loadProfileCV();
+    }
+
+    return () => {
+      window.removeEventListener('auth-changed', handleAuthChanged);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [resumeFileId, resumeTextId]); // Re-run if resume IDs change
 
   const fetchReport = useCallback(async () => {
     const resumeId = resumeFileId || resumeTextId;
@@ -476,6 +594,9 @@ export default function Home() {
                 sourceType="resume"
                 onUploadSuccess={handleResumeUpload}
                 onTextSubmit={handleResumeText}
+                initialFileId={resumeFileId}
+                initialFileName={resumeFileName}
+                onClear={handleResumeClear}
               />
             </div>
 

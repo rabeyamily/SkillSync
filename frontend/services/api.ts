@@ -208,6 +208,8 @@ export const login = async (email: string, password: string) => {
       localStorage.setItem("auth_token", access_token);
       localStorage.setItem("auth_token_set_time", Date.now().toString());
       localStorage.setItem("user", JSON.stringify(user));
+      // Dispatch event to notify components of auth change
+      window.dispatchEvent(new Event('auth-changed'));
     }
 
     return { token: access_token, user };
@@ -223,6 +225,8 @@ export const logout = () => {
     localStorage.removeItem("auth_token_set_time");
     localStorage.removeItem("user");
     localStorage.removeItem("guest_mode");
+    // Dispatch event to notify components of auth change
+    window.dispatchEvent(new Event('auth-changed'));
   }
 };
 
@@ -252,6 +256,8 @@ export const googleAuth = async (idToken: string) => {
     localStorage.setItem("auth_token", access_token);
     localStorage.setItem("auth_token_set_time", Date.now().toString());
     localStorage.setItem("user", JSON.stringify(user));
+    // Dispatch event to notify components of auth change
+    window.dispatchEvent(new Event('auth-changed'));
   }
 
   return { token: access_token, user };

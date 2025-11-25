@@ -12,6 +12,9 @@ interface FileUploadProps {
   onTextSubmit: (textId: string) => void;
   maxSizeMB?: number;
   acceptedTypes?: string[];
+  initialFileId?: string | null;
+  initialFileName?: string | null;
+  onClear?: () => void;
 }
 
 export default function FileUpload({
@@ -21,6 +24,9 @@ export default function FileUpload({
   onTextSubmit,
   maxSizeMB = 10,
   acceptedTypes = [".pdf", ".docx", ".txt"],
+  initialFileId,
+  initialFileName,
+  onClear,
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -29,7 +35,7 @@ export default function FileUpload({
   const [uploadedFile, setUploadedFile] = useState<{
     id: string;
     name: string;
-  } | null>(null);
+  } | null>(initialFileId && initialFileName ? { id: initialFileId, name: initialFileName } : null);
   const [textInput, setTextInput] = useState("");
   const [submittingText, setSubmittingText] = useState(false);
   const [submittedTextId, setSubmittedTextId] = useState<string | null>(null);
@@ -272,6 +278,18 @@ export default function FileUpload({
     handleTextSubmitRef.current = handleTextSubmit;
   }, [handleTextSubmit]);
 
+  // Update uploadedFile when initial props change (e.g., when CV is auto-loaded or cleared on logout)
+  useEffect(() => {
+    if (initialFileId && initialFileName) {
+      setUploadedFile({ id: initialFileId, name: initialFileName });
+      setSubmittedTextId(null); // Clear text input when file is set
+    } else if (initialFileId === null && initialFileName === null) {
+      // Clear the uploaded file when props are explicitly set to null (e.g., on logout)
+      setUploadedFile(null);
+      setSubmittedTextId(null);
+    }
+  }, [initialFileId, initialFileName]);
+
   // Auto-submit text with debounce
   useEffect(() => {
     // Clear any existing timeout
@@ -350,6 +368,10 @@ export default function FileUpload({
     if (textSubmitTimeoutRef.current) {
       clearTimeout(textSubmitTimeoutRef.current);
     }
+    // Notify parent component to clear file ID
+    if (onClear) {
+      onClear();
+    }
   };
 
   return (
@@ -387,23 +409,25 @@ export default function FileUpload({
             />
 
             {uploadedFile ? (
-              <div className="text-center">
-                <div className="flex items-center justify-center">
-                  <svg
-                    className="h-6 w-6 text-blue-500"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+              <div className="text-center py-1">
+                <div className="flex items-center justify-center mb-1.5">
+                  <div className="w-6 h-6 rounded-full border-2 border-blue-600 bg-blue-600 flex items-center justify-center">
+                    <svg
+                      className="h-3.5 w-3.5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs font-medium text-gray-900 dark:text-white truncate">
+                <p className="text-xs font-medium text-gray-900 dark:text-white truncate px-2">
                   {uploadedFile.name}
                 </p>
                 <button
@@ -411,7 +435,7 @@ export default function FileUpload({
                     e.stopPropagation(); // Prevent triggering file input
                     handleClear();
                   }}
-                  className="mt-1 text-xs text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                  className="mt-0.5 text-xs text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
                 >
                   Clear
                 </button>
