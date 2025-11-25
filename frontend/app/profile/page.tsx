@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getProfile, updateProfile, uploadCV, downloadCV, isAuthenticated, getCurrentUser } from "@/services/api";
 import type { Profile } from "@/services/api";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   // Initialize profile with current user data if available
   const getInitialProfile = (): Profile => {
@@ -46,6 +47,13 @@ export default function ProfilePage() {
 
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (searchParams?.get("mode") === "edit") {
+      setIsEditing(true);
+    }
+  }, [searchParams]);
 
   // Check authentication state and update it reactively
   useEffect(() => {
@@ -232,6 +240,7 @@ export default function ProfilePage() {
       const updated = await updateProfile(formData);
       setProfile(updated);
       setSuccess("Profile updated successfully!");
+      setIsEditing(false);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -381,7 +390,39 @@ export default function ProfilePage() {
     }
   };
 
-  // Show form even if profile is null (for new users)
+  const currentUserData = getCurrentUser();
+  const displayFirstName = (profile?.first_name || formData.first_name || "").trim();
+  const displayLastName = (profile?.last_name || formData.last_name || "").trim();
+  const displayFullName = `${displayFirstName} ${displayLastName}`.trim() || currentUserData?.full_name || currentUserData?.email || "Complete your profile";
+  const displayBio = (profile?.bio || formData.bio || "").trim() || "Add a short bio to tell others about yourself.";
+  const displayLocation = (profile?.location || formData.location || "").trim() || "Add your location";
+  const displayEducation = (profile?.education || formData.education || "").trim() || "Add your education";
+  const displayEmail = profile?.email || currentUserData?.email || "Add your email address";
+  const initials =
+    displayFullName && displayFullName !== "Complete your profile"
+      ? displayFullName
+          .split(" ")
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0]?.toUpperCase())
+          .join("") || "👤"
+      : "👤";
+
+  const detailRows = [
+    { label: "First Name", value: displayFirstName || "Add your first name" },
+    { label: "Last Name", value: displayLastName || "Add your last name" },
+    { label: "Email", value: displayEmail, isMuted: false },
+    { label: "Bio", value: displayBio },
+    { label: "Location", value: displayLocation },
+    { label: "Education", value: displayEducation },
+  ];
+  const socialLinks = [
+    { label: "LinkedIn", value: profile?.linkedin_url || formData.linkedin_url, placeholder: "Add your LinkedIn URL" },
+    { label: "GitHub", value: profile?.github_url || formData.github_url, placeholder: "Add your GitHub URL" },
+    { label: "Website", value: profile?.website_url || formData.website_url, placeholder: "Add your website URL" },
+  ];
+
+
   // Only show loading spinner briefly on initial load, and only if we haven't checked auth yet
   if (loading && !hasCheckedAuth) {
     return (
@@ -393,222 +434,127 @@ export default function ProfilePage() {
       </div>
     );
   }
-  
-  // Always show form if we have a profile (even if it's just initialized)
-  if (!profile) {
-    // This shouldn't happen, but if it does, initialize it
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      setProfile(getInitialProfile());
-    }
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950/20 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">My Profile</h1>
-
-        {/* Success/Error Messages */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
-          </div>
-        )}
-        {error && (
-          <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <p className="text-sm text-yellow-700 dark:text-yellow-400">
-              <strong>Note:</strong> {error}
-            </p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 space-y-8">
-          {/* Personal Information Section */}
-          <section>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Personal Information</h2>
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* First Name - Mandatory */}
-                <div>
-                  <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    First Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="first_name"
-                    type="text"
-                    value={formData.first_name}
-                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    placeholder="John"
-                  />
-                </div>
-
-                {/* Last Name - Mandatory */}
-                <div>
-                  <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Last Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="last_name"
-                    type="text"
-                    value={formData.last_name}
-                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    placeholder="Doe"
-                  />
-                </div>
-
-                {/* Email - Read-only */}
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={profile?.email || getCurrentUser()?.email || ""}
-                    disabled
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                    placeholder="Your email address"
-                  />
-                </div>
-
-                {/* Location */}
-                <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Location
-                  </label>
-                  <input
-                    id="location"
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    placeholder="City, Country"
-                  />
-                </div>
-
-                {/* Education - Optional */}
-                <div className="md:col-span-2">
-                  <label htmlFor="education" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    College/Education
-                  </label>
-                  <input
-                    id="education"
-                    type="text"
-                    value={formData.education}
-                    onChange={(e) => setFormData({ ...formData, education: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    placeholder="University Name, Degree, Year"
-                  />
+    <div className="relative min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950/40">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),_transparent)]"></div>
+      <div className="relative min-h-screen flex items-start justify-center py-16 px-4">
+        <div className="relative w-full max-w-xl">
+          <div className="absolute -top-6 inset-x-6 h-32 bg-blue-300 dark:bg-blue-900 blur-3xl opacity-40 rounded-full"></div>
+          <div className="relative bg-white dark:bg-gray-900/90 rounded-3xl shadow-2xl border border-blue-100/70 dark:border-blue-900/40 p-6 sm:p-8 space-y-6">
+            <div className="flex items-start gap-4">
+              <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/40 text-blue-900 dark:text-white flex items-center justify-center text-lg font-semibold uppercase">
+                {initials.length <= 2 ? initials : initials.slice(0, 2)}
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-1">
+                  View profile
+                </p>
+                <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{displayFullName}</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{displayBio}</p>
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <span className="inline-flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20s7-4.5 7-10a7 7 0 10-14 0c0 5.5 7 10 7 10z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    {displayLocation}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5zm0 0l9-5v6m-9 5l-9-5v-6" />
+                    </svg>
+                    {displayEducation}
+                  </span>
                 </div>
               </div>
-
-              {/* Bio */}
-              <div>
-                <label htmlFor="bio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Bio
-                </label>
-                <textarea
-                  id="bio"
-                  rows={4}
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  placeholder="Tell us about yourself..."
-                />
-              </div>
-
-              {/* Social Links - Optional */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label htmlFor="linkedin_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    LinkedIn URL
-                  </label>
-                  <input
-                    id="linkedin_url"
-                    type="url"
-                    value={formData.linkedin_url}
-                    onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    placeholder="https://linkedin.com/in/..."
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="github_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    GitHub URL
-                  </label>
-                  <input
-                    id="github_url"
-                    type="url"
-                    value={formData.github_url}
-                    onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    placeholder="https://github.com/..."
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="website_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Website URL
-                  </label>
-                  <input
-                    id="website_url"
-                    type="url"
-                    value={formData.website_url}
-                    onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    placeholder="https://..."
-                  />
-                </div>
-              </div>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="rounded-full border border-blue-600 text-blue-600 dark:text-blue-300 dark:border-blue-500 px-4 py-1 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                >
+                  Edit profile
+                </button>
+              )}
             </div>
-          </section>
 
-          {/* CV Upload Section - Mandatory */}
-          <section className="border-t border-gray-200 dark:border-gray-700 pt-8">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Resume/CV <span className="text-red-500">*</span>
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-              CV upload is required to complete your profile
-            </p>
-            
-            {profile?.has_cv ? (
-              <div className="space-y-4">
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-sm text-green-600 dark:text-green-400">
-                    ✓ You have an uploaded CV
-                  </p>
+            {success && (
+              <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm text-green-600 dark:text-green-300">
+                {success}
+              </div>
+            )}
+            {error && (
+              <div className="p-3 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-sm text-yellow-700 dark:text-yellow-300">
+                {error}
+              </div>
+            )}
+
+            {!isEditing && (
+              <div className="space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Personal info</h3>
+                  <div className="space-y-2">
+                    {detailRows.map((row) => (
+                      <div key={row.label} className="flex justify-between text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">{row.label}</span>
+                        <span className="text-gray-900 dark:text-gray-100 text-right">{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={handleDownloadCV}
-                    className="px-4 py-2 border-2 border-blue-600 text-blue-600 dark:text-blue-400 font-semibold rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                  >
-                    Download CV
-                  </button>
-                  <label className="px-4 py-2 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                    Replace CV
-                    <input
-                      type="file"
-                      accept=".pdf,.docx,.txt"
-                      onChange={handleCVUpload}
-                      className="hidden"
-                      disabled={uploadingCV}
-                    />
-                  </label>
+
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Online presence</h3>
+                  <div className="space-y-3">
+                    {socialLinks.map((link) => (
+                      <div key={link.label} className="flex items-center justify-between text-sm">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">{link.label}</p>
+                          <p className="text-gray-900 dark:text-gray-100 truncate max-w-xs">
+                            {link.value || link.placeholder}
+                          </p>
+                        </div>
+                        {link.value && (
+                          <a
+                            href={link.value}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 font-semibold text-xs hover:underline"
+                          >
+                            Visit
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            ) : (
-              <div>
-                <label 
+            )}
+
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                Resume / CV <span className="text-red-500">*</span>
+              </h3>
+                {profile?.has_cv ? (
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm text-green-700 dark:text-green-300">
+                      CV on file
+                    </div>
+                    <label className="flex rounded-full border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold py-2 justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm">
+                      Replace CV
+                      <input
+                        type="file"
+                        accept=".pdf,.docx,.txt"
+                        onChange={handleCVUpload}
+                        className="hidden"
+                        disabled={uploadingCV}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                <label
                   htmlFor="cv-upload-input"
-                  className="block w-full px-6 py-4 border-2 border-dashed border-red-300 dark:border-red-600 rounded-lg text-center cursor-pointer hover:border-red-500 dark:hover:border-red-400 transition-colors bg-red-50 dark:bg-red-900/10"
+                  className="block px-4 py-6 text-center border-2 border-dashed border-red-200 dark:border-red-700 rounded-2xl hover:border-red-400 dark:hover:border-red-500 transition-colors cursor-pointer bg-red-50/70 dark:bg-red-900/20"
                 >
                   <input
                     id="cv-upload-input"
@@ -621,40 +567,170 @@ export default function ProfilePage() {
                     className="hidden"
                     disabled={uploadingCV}
                   />
-                  <div className="space-y-2 pointer-events-none">
-                    <svg className="mx-auto h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                      {uploadingCV ? "Uploading..." : "Click to upload your CV (PDF, DOCX, or TXT) - Required"}
-                    </p>
-                    {!isUserAuthenticated ? (
-                      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
-                        ⚠️ Please log in to upload your CV
-                      </p>
-                    ) : (
-                      <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                        ✓ Ready to upload
-                      </p>
-                    )}
-                  </div>
+                  <p className="text-sm font-semibold text-red-600 dark:text-red-300">
+                    {uploadingCV ? "Uploading..." : "Upload CV to complete profile"}
+                  </p>
+                  <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
+                    Accepted: PDF, DOCX, TXT • Max 10MB
+                  </p>
                 </label>
-              </div>
-            )}
-          </section>
+              )}
+            </div>
 
-          {/* Save Button - At the end */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-8 flex justify-end">
-            <button
-              type="submit"
-              disabled={saving || !formData.first_name.trim() || !formData.last_name.trim() || !profile?.has_cv}
-              className="px-8 py-3 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: (saving || !formData.first_name.trim() || !formData.last_name.trim() || !profile?.has_cv) ? '#94a3b8' : '#0077b5' }}
-            >
-              {saving ? "Saving..." : "Save Profile"}
-            </button>
+            {isEditing && (
+              <form onSubmit={handleSubmit} className="border-t border-gray-100 dark:border-gray-800 pt-6 space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-400 font-semibold">
+                      Edit profile
+                    </p>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Personal information</h2>
+                  </div>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">* Required</span>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="first_name" className="text-sm text-gray-600 dark:text-gray-300">
+                        First Name *
+                      </label>
+                      <input
+                        id="first_name"
+                        type="text"
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                        required
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="John"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="last_name" className="text-sm text-gray-600 dark:text-gray-300">
+                        Last Name *
+                      </label>
+                      <input
+                        id="last_name"
+                        type="text"
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                        required
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-gray-600 dark:text-gray-300">Email</label>
+                      <input
+                        type="email"
+                        value={profile?.email || currentUserData?.email || ""}
+                        disabled
+                        className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-4 py-2 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="location" className="text-sm text-gray-600 dark:text-gray-300">
+                        Location
+                      </label>
+                      <input
+                        id="location"
+                        type="text"
+                        value={formData.location}
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="City, Country"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="education" className="text-sm text-gray-600 dark:text-gray-300">
+                      College / Education
+                    </label>
+                    <input
+                      id="education"
+                      type="text"
+                      value={formData.education}
+                      onChange={(e) => setFormData({ ...formData, education: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      placeholder="University Name, Degree, Year"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="bio" className="text-sm text-gray-600 dark:text-gray-300">
+                      Bio
+                    </label>
+                    <textarea
+                      id="bio"
+                      rows={3}
+                      value={formData.bio}
+                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      placeholder="Tell us about yourself..."
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label htmlFor="linkedin_url" className="text-sm text-gray-600 dark:text-gray-300">
+                        LinkedIn URL
+                      </label>
+                      <input
+                        id="linkedin_url"
+                        type="url"
+                        value={formData.linkedin_url}
+                        onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="https://linkedin.com/in/..."
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="github_url" className="text-sm text-gray-600 dark:text-gray-300">
+                        GitHub URL
+                      </label>
+                      <input
+                        id="github_url"
+                        type="url"
+                        value={formData.github_url}
+                        onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="https://github.com/..."
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="website_url" className="text-sm text-gray-600 dark:text-gray-300">
+                        Website URL
+                      </label>
+                      <input
+                        id="website_url"
+                        type="url"
+                        value={formData.website_url}
+                        onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="px-5 py-2 rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving || !formData.first_name.trim() || !formData.last_name.trim() || !profile?.has_cv}
+                    className="px-5 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
+                  >
+                    {saving ? "Saving..." : "Save profile"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

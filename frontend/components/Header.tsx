@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Logo from "./Logo";
 import LoginModal from "./LoginModal";
+import ProfileOverlay from "./ProfileOverlay";
 import { getCurrentUser, logout, isAuthenticated, User } from "@/services/api";
 
 interface NavigationItem {
@@ -45,7 +46,9 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [profileOverlayOpen, setProfileOverlayOpen] = useState(false);
+  const [profileOverlayAnchor, setProfileOverlayAnchor] = useState<DOMRect | null>(null);
+  const userButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Check authentication state on mount and when it changes
   useEffect(() => {
@@ -79,19 +82,6 @@ export default function Header() {
     };
   }, []);
 
-  // Close user menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuOpen && !(event.target as Element).closest('.user-menu-container')) {
-        setUserMenuOpen(false);
-      }
-    };
-    if (userMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [userMenuOpen]);
-
   // Refresh user state when modal closes (after successful login)
   useEffect(() => {
     if (!loginModalOpen) {
@@ -110,7 +100,7 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     setUser(null);
-    setUserMenuOpen(false);
+    setProfileOverlayOpen(false);
     router.push('/');
   };
 
@@ -150,33 +140,21 @@ export default function Header() {
           
           {/* Auth Section */}
           {user ? (
-            <div className="relative user-menu-container">
+            <div className="relative">
               <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                ref={userButtonRef}
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setProfileOverlayAnchor(rect);
+                  setProfileOverlayOpen((prev) => !prev);
+                }}
+                className="user-button-anchor flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 border border-transparent rounded-full hover:border-blue-100 dark:hover:border-blue-400/40 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 <span className="hidden lg:inline">{user.full_name || user.email}</span>
               </button>
-              {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-                  <Link
-                    href="/profile"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    Profile
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              )}
             </div>
           ) : (
             <button
@@ -268,18 +246,24 @@ export default function Header() {
             {/* Auth in Mobile Menu */}
             {user ? (
               <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700">
-                <Link
-                  href="/profile"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 text-sm font-medium text-gray-900 dark:text-white mb-2"
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    if (userButtonRef.current) {
+                      const rect = userButtonRef.current.getBoundingClientRect();
+                      setProfileOverlayAnchor(rect);
+                      setProfileOverlayOpen(true);
+                    }
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm font-medium text-gray-900 dark:text-white mb-2"
                 >
-                  Profile
-                </Link>
+                  View Profile
+                </button>
                 <button
                   onClick={handleLogout}
                   className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
                 >
-                  Sign Out
+                  Log Out
                 </button>
               </div>
             ) : (
@@ -309,6 +293,11 @@ export default function Header() {
             window.dispatchEvent(new Event('auth-changed'));
           }
         }}
+      />
+      <ProfileOverlay
+        isOpen={profileOverlayOpen}
+        onClose={() => setProfileOverlayOpen(false)}
+        anchorRect={profileOverlayAnchor}
       />
     </header>
   );

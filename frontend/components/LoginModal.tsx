@@ -17,7 +17,6 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
   const [mounted, setMounted] = useState(false);
   const [passwordValidation, setPasswordValidation] = useState<PasswordValidationResult | null>(null);
   const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
@@ -202,7 +201,6 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
     setShowPassword(false);
     setPasswordValidation(null);
     setShowPasswordRequirements(false);
-    setRememberMe(false);
     setShowVerification(false);
     setVerificationCode('');
     setPendingEmail('');
@@ -377,22 +375,6 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
                     </div>
                   )}
                 </div>
-
-                {/* Remember Me Checkbox */}
-                {isLogin && (
-                  <div className="flex items-center">
-                    <input
-                      id="remember-me"
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
-                    />
-                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                      Remember me
-                    </label>
-                  </div>
-                )}
 
                 {/* Legal Agreement Text - only for signup */}
                 {!isLogin && (
