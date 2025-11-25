@@ -9,6 +9,7 @@ import {
   Skill,
   FitScoreBreakdown,
   SkillExtractionResult,
+  CourseRecommendation,
 } from "@/utils/types";
 import {
   SkillTag,
@@ -831,6 +832,14 @@ export default function Home() {
               {/* Fit Score Display */}
               <FitScoreDisplay fitScore={report.fit_score} />
 
+              {/* Course Recommendations Section */}
+              <div className="mt-8">
+                <CourseRecommendationsSection 
+                  recommendations={report.course_recommendations || []}
+                  missingSkills={report.gap_analysis?.missing_skills || []}
+                />
+              </div>
+
               {/* Download Actions */}
               <DownloadActions
                 onDownloadPDF={handleDownloadPDF}
@@ -1274,6 +1283,186 @@ function DownloadActions({
               </>
             )}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CourseRecommendationsSection({
+  recommendations,
+  missingSkills,
+}: {
+  recommendations: CourseRecommendation[];
+  missingSkills: Skill[];
+}) {
+  const generateLinkedInLearningUrl = (skillName: string) => {
+    return `https://www.linkedin.com/learning/search?keywords=${encodeURIComponent(skillName)}`;
+  };
+
+  // If we have course recommendations, show them
+  if (recommendations && recommendations.length > 0) {
+    return (
+      <div className="rounded-lg bg-gradient-to-br from-white to-blue-50/30 p-6 shadow-sm ring-1 ring-blue-200 dark:from-gray-800 dark:to-blue-950/20 dark:ring-blue-600/30">
+        <div className="flex items-center mb-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ background: 'linear-gradient(to bottom right, #0077b5, #00a0dc)' }}>
+            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Recommended Courses
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              LinkedIn Learning courses available through NYU to help you develop missing skills
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+          {recommendations.map((rec, index) => (
+            <a
+              key={index}
+              href={rec.linkedin_learning_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all duration-200"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {rec.skill_name}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 capitalize">
+                    {rec.category.replace(/_/g, " ")}
+                  </p>
+                </div>
+                <svg
+                  className="w-5 h-5 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0 ml-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </div>
+              <div className="mt-3 flex items-center text-xs text-blue-600 dark:text-blue-400">
+                <span className="font-medium">{rec.platform}</span>
+                <svg
+                  className="w-3 h-3 ml-1"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // If no course recommendations but we have missing skills, show them with search links
+  if (missingSkills && missingSkills.length > 0) {
+    const topMissing = missingSkills.slice(0, 10);
+    return (
+      <div className="rounded-lg bg-gradient-to-br from-white to-blue-50/30 p-6 shadow-sm ring-1 ring-blue-200 dark:from-gray-800 dark:to-blue-950/20 dark:ring-blue-600/30">
+        <div className="flex items-center mb-4">
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ background: 'linear-gradient(to bottom right, #0077b5, #00a0dc)' }}>
+            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Recommended Courses
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              LinkedIn Learning courses available through NYU to help you develop missing skills
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+          {topMissing.map((skill, index) => (
+            <a
+              key={index}
+              href={generateLinkedInLearningUrl(skill.name)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block p-4 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all duration-200"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {skill.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 capitalize">
+                    {skill.category?.replace(/_/g, " ") || "Other"}
+                  </p>
+                </div>
+                <svg
+                  className="w-5 h-5 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0 ml-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </div>
+              <div className="mt-3 flex items-center text-xs text-blue-600 dark:text-blue-400">
+                <span className="font-medium">LinkedIn Learning</span>
+                <svg
+                  className="w-3 h-3 ml-1"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // If no missing skills, show a success message
+  return (
+    <div className="rounded-lg bg-gradient-to-br from-white to-blue-50/30 p-6 shadow-sm ring-1 ring-blue-200 dark:from-gray-800 dark:to-blue-950/20 dark:ring-blue-600/30">
+      <div className="flex items-center mb-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center mr-3" style={{ background: 'linear-gradient(to bottom right, #0077b5, #00a0dc)' }}>
+          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+          </svg>
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Recommended Courses
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            You have all the required skills! No course recommendations needed.
+          </p>
         </div>
       </div>
     </div>
