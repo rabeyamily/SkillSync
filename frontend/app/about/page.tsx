@@ -16,10 +16,10 @@ export default function About() {
         {/* Main Description Card */}
         <div className="bg-gradient-to-br from-white to-blue-50 dark:from-gray-900 dark:to-blue-950/20 rounded-2xl shadow-xl p-8 mb-12 border border-blue-100 dark:border-blue-900/30">
           <p className="text-lg leading-8 text-gray-700 dark:text-gray-300 mb-6">
-            SkillSync is an AI-powered tool that helps students and professionals identify how their current skills align with industry job requirements. Using advanced natural language processing, it analyzes both your resume and job descriptions to extract key competencies — from technical and soft skills to certifications and education.
+            SkillSync helps you understand how your skills align with the jobs you want. Paste a resume and a job description, and SkillSync finds the overlap by scanning for technical and soft skills, certifications, and education requirements.
           </p>
           <p className="text-lg leading-8 text-gray-700 dark:text-gray-300">
-            The system then compares both profiles to calculate a Fit Score, highlight missing or extra skills, and offer personalized upskilling recommendations. Interactive charts make it easy to visualize where you stand and what to improve. SkillSync is designed for accuracy, privacy, and simplicity — no login required.
+            You can quickly see which skills you already have, where the gaps are, and what to learn next. SkillSync also gives you a simple Fit Score and personalized recommendations so you can make clearer decisions about your career growth.
           </p>
         </div>
 
@@ -59,22 +59,6 @@ export default function About() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Fit Score Calculation</h3>
                 <p className="text-gray-600 dark:text-gray-300 text-sm">
                   Get a comprehensive score showing how well your skills match job requirements
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border-l-4 border-slate-800 hover:shadow-xl transition-shadow duration-300">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mr-4" style={{ background: 'linear-gradient(to bottom right, #0077b5, #00a0dc)' }}>
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Visual Analytics</h3>
-                <p className="text-gray-600 dark:text-gray-300 text-sm">
-                  Interactive charts and breakdowns help you understand your skill profile
                 </p>
               </div>
             </div>
@@ -176,6 +160,27 @@ export default function About() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Recommendations Section */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 mb-12 border border-blue-100 dark:border-blue-900/30">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Recommendations You Can Act On
+          </h2>
+          <p className="text-gray-700 dark:text-gray-300 leading-7 mb-4">
+            After comparing your resume with a job description, SkillSync produces concise, personalized recommendations. 
+            They focus on the skills that matter most—what to highlight, what to learn next, and where to spend your effort.
+          </p>
+          <ul className="list-disc list-inside text-gray-700 dark:text-gray-300 leading-7 space-y-2 ml-2">
+            <li><strong className="text-gray-900 dark:text-white">Missing skills summary:</strong> Every gap from the comparison is surfaced so you know exactly what the job still needs.</li>
+            <li><strong className="text-gray-900 dark:text-white">Course suggestions:</strong> Coursera links generated for each missing technical skill to help you start learning immediately.</li>
+          </ul>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-4">
+            Recommendations update every time you rerun an analysis, so you always have an up-to-date learning plan.
+          </p>
         </div>
       </div>
     </div>

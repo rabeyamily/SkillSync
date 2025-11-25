@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getProfile, updateProfile, uploadCV, downloadCV, isAuthenticated, getCurrentUser } from "@/services/api";
+import { getProfile, updateProfile, uploadCV, downloadCV, isAuthenticated, getCurrentUser, getCV } from "@/services/api";
 import type { Profile } from "@/services/api";
 
 export default function ProfilePage() {
@@ -48,6 +48,7 @@ export default function ProfilePage() {
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [cvInfo, setCvInfo] = useState<{ filename: string } | null>(null);
 
   useEffect(() => {
     if (searchParams?.get("mode") === "edit") {
@@ -170,6 +171,11 @@ export default function ProfilePage() {
         github_url: data.github_url || "",
         website_url: data.website_url || "",
       });
+      if (data.has_cv) {
+        await loadCvDetails();
+      } else {
+        setCvInfo(null);
+      }
     } catch (err: any) {
       console.log('Profile load error (non-critical):', err.response?.status, err.response?.data?.detail);
       
@@ -191,6 +197,7 @@ export default function ProfilePage() {
           has_cv: false
         });
       }
+      setCvInfo(null);
       
       // Don't show error for 401 - it's expected if session expired
       // User can still fill out the form and log in to save
@@ -334,6 +341,12 @@ export default function ProfilePage() {
       setSuccess("CV uploaded successfully!");
       setTimeout(() => setSuccess(null), 3000);
       
+      if (result?.filename) {
+        setCvInfo({ filename: result.filename });
+      } else if (file.name) {
+        setCvInfo({ filename: file.name });
+      }
+
       // Update profile to reflect CV upload
       if (isAuthenticated()) {
         try {
@@ -387,6 +400,23 @@ export default function ProfilePage() {
       document.body.removeChild(a);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to download CV");
+    }
+  };
+
+  const loadCvDetails = async () => {
+    try {
+      const cv = await getCV();
+      if (cv?.filename) {
+        setCvInfo({ filename: cv.filename });
+      } else {
+        setCvInfo(null);
+      }
+    } catch (err: any) {
+      // 404 just means no CV
+      setCvInfo(null);
+      if (err.response?.status && err.response.status !== 404) {
+        console.warn("Failed to load CV info", err.response?.data || err.message);
+      }
     }
   };
 
@@ -478,16 +508,16 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {success && (
+        {success && (
               <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm text-green-600 dark:text-green-300">
                 {success}
-              </div>
-            )}
-            {error && (
+          </div>
+        )}
+        {error && (
               <div className="p-3 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 text-sm text-yellow-700 dark:text-yellow-300">
                 {error}
-              </div>
-            )}
+          </div>
+        )}
 
             {!isEditing && (
               <div className="space-y-5">
@@ -538,7 +568,13 @@ export default function ProfilePage() {
                 {profile?.has_cv ? (
                   <div className="space-y-3">
                     <div className="p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm text-green-700 dark:text-green-300">
-                      CV on file
+                      {cvInfo?.filename ? (
+                        <span className="font-semibold text-green-800 dark:text-green-200">
+                          {cvInfo.filename}
+                        </span>
+                      ) : (
+                        "CV on file"
+                      )}
                     </div>
                     <label className="flex rounded-full border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold py-2 justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm">
                       Replace CV
@@ -593,124 +629,124 @@ export default function ProfilePage() {
                     <div>
                       <label htmlFor="first_name" className="text-sm text-gray-600 dark:text-gray-300">
                         First Name *
-                      </label>
-                      <input
-                        id="first_name"
-                        type="text"
-                        value={formData.first_name}
-                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                        required
+                  </label>
+                  <input
+                    id="first_name"
+                    type="text"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    required
                         className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        placeholder="John"
-                      />
-                    </div>
-                    <div>
+                    placeholder="John"
+                  />
+                </div>
+                <div>
                       <label htmlFor="last_name" className="text-sm text-gray-600 dark:text-gray-300">
                         Last Name *
-                      </label>
-                      <input
-                        id="last_name"
-                        type="text"
-                        value={formData.last_name}
-                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                        required
+                  </label>
+                  <input
+                    id="last_name"
+                    type="text"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    required
                         className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        placeholder="Doe"
-                      />
-                    </div>
+                    placeholder="Doe"
+                  />
+                </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
+                <div>
                       <label className="text-sm text-gray-600 dark:text-gray-300">Email</label>
-                      <input
-                        type="email"
+                  <input
+                    type="email"
                         value={profile?.email || currentUserData?.email || ""}
-                        disabled
+                    disabled
                         className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-4 py-2 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-                      />
-                    </div>
-                    <div>
+                  />
+                </div>
+                <div>
                       <label htmlFor="location" className="text-sm text-gray-600 dark:text-gray-300">
-                        Location
-                      </label>
-                      <input
-                        id="location"
-                        type="text"
-                        value={formData.location}
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    Location
+                  </label>
+                  <input
+                    id="location"
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                         className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        placeholder="City, Country"
-                      />
-                    </div>
+                    placeholder="City, Country"
+                  />
+                </div>
                   </div>
                   <div>
                     <label htmlFor="education" className="text-sm text-gray-600 dark:text-gray-300">
                       College / Education
-                    </label>
-                    <input
-                      id="education"
-                      type="text"
-                      value={formData.education}
-                      onChange={(e) => setFormData({ ...formData, education: e.target.value })}
+                  </label>
+                  <input
+                    id="education"
+                    type="text"
+                    value={formData.education}
+                    onChange={(e) => setFormData({ ...formData, education: e.target.value })}
                       className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                      placeholder="University Name, Degree, Year"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="bio" className="text-sm text-gray-600 dark:text-gray-300">
-                      Bio
-                    </label>
-                    <textarea
-                      id="bio"
-                      rows={3}
-                      value={formData.bio}
-                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                      className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                      placeholder="Tell us about yourself..."
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="linkedin_url" className="text-sm text-gray-600 dark:text-gray-300">
-                        LinkedIn URL
-                      </label>
-                      <input
-                        id="linkedin_url"
-                        type="url"
-                        value={formData.linkedin_url}
-                        onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        placeholder="https://linkedin.com/in/..."
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="github_url" className="text-sm text-gray-600 dark:text-gray-300">
-                        GitHub URL
-                      </label>
-                      <input
-                        id="github_url"
-                        type="url"
-                        value={formData.github_url}
-                        onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
-                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        placeholder="https://github.com/..."
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="website_url" className="text-sm text-gray-600 dark:text-gray-300">
-                        Website URL
-                      </label>
-                      <input
-                        id="website_url"
-                        type="url"
-                        value={formData.website_url}
-                        onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        placeholder="https://..."
-                      />
-                    </div>
-                  </div>
+                    placeholder="University Name, Degree, Year"
+                  />
                 </div>
+              <div>
+                    <label htmlFor="bio" className="text-sm text-gray-600 dark:text-gray-300">
+                  Bio
+                </label>
+                <textarea
+                  id="bio"
+                      rows={3}
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  placeholder="Tell us about yourself..."
+                />
+              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                      <label htmlFor="linkedin_url" className="text-sm text-gray-600 dark:text-gray-300">
+                    LinkedIn URL
+                  </label>
+                  <input
+                    id="linkedin_url"
+                    type="url"
+                    value={formData.linkedin_url}
+                    onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    placeholder="https://linkedin.com/in/..."
+                  />
+                </div>
+                <div>
+                      <label htmlFor="github_url" className="text-sm text-gray-600 dark:text-gray-300">
+                    GitHub URL
+                  </label>
+                  <input
+                    id="github_url"
+                    type="url"
+                    value={formData.github_url}
+                    onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    placeholder="https://github.com/..."
+                  />
+                </div>
+                <div>
+                      <label htmlFor="website_url" className="text-sm text-gray-600 dark:text-gray-300">
+                    Website URL
+                  </label>
+                  <input
+                    id="website_url"
+                    type="url"
+                    value={formData.website_url}
+                    onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+            </div>
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"
@@ -719,15 +755,15 @@ export default function ProfilePage() {
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    disabled={saving || !formData.first_name.trim() || !formData.last_name.trim() || !profile?.has_cv}
+            <button
+              type="submit"
+              disabled={saving || !formData.first_name.trim() || !formData.last_name.trim() || !profile?.has_cv}
                     className="px-5 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
-                  >
+            >
                     {saving ? "Saving..." : "Save profile"}
-                  </button>
-                </div>
-              </form>
+            </button>
+          </div>
+        </form>
             )}
           </div>
         </div>

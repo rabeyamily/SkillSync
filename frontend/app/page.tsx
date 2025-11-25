@@ -1082,7 +1082,7 @@ function FitScoreDisplay({ fitScore }: { fitScore: FitScoreBreakdown }) {
             total={fitScore.total_jd_skills}
           />
           <StatCard
-              label="Total Job Description Skills"
+            label="Total Job Description Skills"
             value={fitScore.total_jd_skills}
             total={undefined}
           />
@@ -1209,17 +1209,20 @@ function StatCard({
   total,
 }: {
   label: string;
-  value: number;
-  total?: number;
+  value: number | string;
+  total?: number | string;
 }) {
   return (
-    <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-50 p-2 ring-1 ring-blue-200/50 dark:from-blue-950/30 dark:to-blue-950/30 dark:ring-blue-600/30 max-w-xs">
-      <p className="text-base font-medium text-blue-700 dark:text-blue-300 font-mono">
-        {label}: <span className="font-bold text-lg text-blue-600 dark:text-blue-400">
+    <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100/70 p-3 ring-1 ring-blue-200/60 dark:from-blue-950/30 dark:to-blue-950/20 dark:ring-blue-600/40 w-full">
+      <div className="flex items-center justify-between gap-6">
+        <span className="text-base sm:text-lg font-medium text-blue-700 dark:text-blue-300 font-mono whitespace-nowrap">
+          {label}:
+        </span>
+        <span className="font-bold text-lg sm:text-xl text-blue-600 dark:text-blue-400 whitespace-nowrap">
           {value}
           {total !== undefined && ` / ${total}`}
         </span>
-      </p>
+      </div>
     </div>
   );
 }
