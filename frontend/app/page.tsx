@@ -1016,21 +1016,16 @@ function FitScoreDisplay({ fitScore }: { fitScore: FitScoreBreakdown }) {
               </svg>
             </button>
           </h3>
-            <div
-              className={`inline-flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br ${getScoreBgColor(
-                fitScore.overall_score ?? 0
-              )} ring-2 ring-blue-200 dark:ring-blue-600/50`}
-            >
-              <span
-                className={`text-5xl font-bold ${getScoreColor(
-                  fitScore.overall_score ?? 0
-                )}`}
-              >
-                {fitScore.overall_score !== null && fitScore.overall_score !== undefined
-                  ? fitScore.overall_score.toFixed(0)
-                  : "N/A"}
-              </span>
-          </div>
+          <span
+            className={`text-7xl font-bold ${getScoreColor(
+              fitScore.overall_score ?? 0
+            )}`}
+            style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', letterSpacing: '-0.02em' }}
+          >
+            {fitScore.overall_score !== null && fitScore.overall_score !== undefined
+              ? fitScore.overall_score.toFixed(0)
+              : "N/A"}
+          </span>
         </div>
 
         {/* Box 2: Skill Scores */}
