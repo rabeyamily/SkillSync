@@ -43,13 +43,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+  
+  // Warn if client ID is missing (only in development)
+  if (process.env.NODE_ENV === 'development' && !googleClientId) {
+    console.warn('⚠️ NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set. Google Sign-In will not work.');
+  }
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dancingScript.variable} ${lora.variable} antialiased`}
         suppressHydrationWarning
       >
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
+        <GoogleOAuthProvider clientId={googleClientId}>
           <ThemeProvider>
             <MainLayout>{children}</MainLayout>
           </ThemeProvider>
