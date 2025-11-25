@@ -707,38 +707,11 @@ function ResultsDashboardContent() {
           );
         })()}
 
-        {/* BIG WARNING AT TOP */}
-        <div className="p-6 bg-red-500 text-white text-center text-2xl font-bold mb-8 rounded-lg">
-          ⚠️ SCROLL DOWN TO SEE COURSE RECOMMENDATIONS SECTION ⚠️
-        </div>
-
         {/* Fit Score Display */}
         <FitScoreDisplay fitScore={report.fit_score} />
 
-        {/* DEBUG: Show raw data */}
-        <div className="mt-8 p-6 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg border-4 border-yellow-500">
-          <h3 className="font-bold text-yellow-900 dark:text-yellow-200 mb-2 text-2xl">🐛 DEBUG INFO - SCROLL DOWN TO SEE RECOMMENDATIONS BELOW ⬇️</h3>
-          <pre className="text-xs overflow-auto max-h-40 text-yellow-900 dark:text-yellow-200">
-            {JSON.stringify({
-              hasCourseRecommendations: !!report.course_recommendations,
-              courseRecommendationsLength: report.course_recommendations?.length || 0,
-              courseRecommendations: report.course_recommendations,
-              missingSkillsCount: report.gap_analysis?.missing_skills?.length || 0,
-              missingSkills: report.gap_analysis?.missing_skills?.slice(0, 3),
-              totalResumeSkills: resumeSkills?.skills?.length || 0,
-              totalJdSkills: jdSkills?.skills?.length || 0,
-            }, null, 2)}
-          </pre>
-          <p className="mt-4 text-lg font-bold text-yellow-900 dark:text-yellow-200">
-            ⬇️ THE RECOMMENDATIONS SECTION IS RIGHT BELOW THIS BOX ⬇️
-          </p>
-        </div>
-
-        {/* Course Recommendations Section - Always show */}
-        <div className="mt-8 border-4 border-red-500 p-2">
-          <div className="bg-red-100 dark:bg-red-900/20 p-2 mb-4">
-            <p className="text-red-900 dark:text-red-200 font-bold">👇 THIS IS THE RECOMMENDATIONS SECTION 👇</p>
-          </div>
+        {/* Course Recommendations Section */}
+        <div className="mt-8">
           <CourseRecommendationsSection 
             recommendations={report.course_recommendations || []}
             missingSkills={report.gap_analysis?.missing_skills || []}
