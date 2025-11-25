@@ -24,13 +24,14 @@ export default function Home() {
   const [resumeFileId, setResumeFileId] = useState<string | null>(null);
   const [resumeFileName, setResumeFileName] = useState<string | null>(null);
   const [resumeTextId, setResumeTextId] = useState<string | null>(null);
-  const [cvInfo, setCvInfo] = useState<{ filename: string; file_type: string } | null>(null);
+const [cvInfo, setCvInfo] = useState<{ filename: string; file_type?: string } | null>(null);
   const [jdFileId, setJdFileId] = useState<string | null>(null);
   const [jdTextId, setJdTextId] = useState<string | null>(null);
   const [canAnalyze, setCanAnalyze] = useState(false);
   const [report, setReport] = useState<SkillGapReport | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const [error, setError] = useState<string | null>(null);
+const [downloadError, setDownloadError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [downloadingCSV, setDownloadingCSV] = useState(false);
@@ -508,16 +509,17 @@ export default function Home() {
     const jdId = jdFileId || jdTextId;
 
     if (!resumeId || !jdId) {
-      setError("Cannot download PDF: Missing resume or job description ID");
+      setDownloadError("Cannot download PDF: Missing resume or job description.");
       return;
     }
 
     setDownloadingPDF(true);
+    setDownloadError(null);
     try {
       const pdfBlob = await generatePDFReportFromIds(resumeId, jdId);
       const filename = `skill_gap_report_${new Date().toISOString().split("T")[0]}.pdf`;
       downloadPDF(pdfBlob, filename);
-      setError(null);
+      setDownloadError(null);
     } catch (err: any) {
       const errorMessage = err.message || err.response?.data?.detail || "Failed to generate PDF. Please try again.";
 
@@ -539,25 +541,23 @@ export default function Home() {
             });
             const filename = `skill_gap_report_${new Date().toISOString().split("T")[0]}.pdf`;
             downloadPDF(pdfBlob, filename);
-            setError(null);
+            setDownloadError(null);
             return;
           } catch (fallbackErr: any) {
             const fallbackMessage =
               fallbackErr.message ||
               fallbackErr.response?.data?.detail ||
               "Failed to generate PDF with stored data.";
-            setError(fallbackMessage);
+            setDownloadError(fallbackMessage);
             return;
           }
         } else {
-          setError(
-            "We can't find your uploaded files anymore. Please re-upload your resume and job description, then try again."
-          );
+          setDownloadError("We can't find your uploaded files anymore. Please re-upload your files and try again.");
           return;
         }
       }
 
-      setError(errorMessage);
+      setDownloadError(errorMessage);
     } finally {
       setDownloadingPDF(false);
     }
@@ -984,7 +984,8 @@ export default function Home() {
                 onDownloadPDF={handleDownloadPDF}
                 onDownloadCSV={handleDownloadCSV}
                 downloadingPDF={downloadingPDF}
-                downloadingCSV={downloadingCSV}
+              downloadingCSV={downloadingCSV}
+              errorMessage={downloadError}
               />
             </div>
           </div>
@@ -1292,11 +1293,13 @@ function DownloadActions({
   onDownloadCSV,
   downloadingPDF,
   downloadingCSV,
+  errorMessage,
 }: {
   onDownloadPDF: () => void;
   onDownloadCSV: () => void;
   downloadingPDF: boolean;
   downloadingCSV: boolean;
+  errorMessage?: string | null;
 }) {
   return (
     <div className="mx-auto max-w-2xl rounded-xl bg-gradient-to-br from-white via-blue-50/50 to-blue-50/30 p-2.5 shadow-lg ring-1 ring-blue-200/50 dark:from-gray-800 dark:via-blue-950/20 dark:to-blue-950/20 dark:ring-blue-600/30 hover:shadow-xl transition-shadow duration-300">
@@ -1422,6 +1425,11 @@ function DownloadActions({
           </button>
         </div>
       </div>
+      {errorMessage ? (
+        <p className="mt-3 text-sm text-center text-red-600 dark:text-red-400">
+          {errorMessage}
+        </p>
+      ) : null}
     </div>
   );
 }
