@@ -55,16 +55,13 @@ async def generate_pdf_report(request: AnalyzeGapRequest):
             include_certifications=True
         )
         
-        # Generate recommendations
-        recommendations = recommendations_generator.generate_recommendations(
-            gap_analysis=gap_analysis,
-            overall_score=fit_score.overall_score
-        )
-        
         # Generate course recommendations with LinkedIn Learning links
         course_recommendations = recommendations_generator.generate_course_recommendations(
             gap_analysis=gap_analysis
         )
+        
+        # Text-based recommendations are no longer used in PDF, but kept empty for schema compatibility
+        recommendations = []
         
         # Create input summaries
         resume_summary = {
@@ -108,6 +105,10 @@ async def generate_pdf_report(request: AnalyzeGapRequest):
         )
         
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error generating PDF report: {str(e)}")
+        print(f"Traceback: {error_trace}")
         raise HTTPException(
             status_code=500,
             detail=f"Error generating PDF report: {str(e)}"
@@ -189,6 +190,10 @@ async def generate_pdf_from_ids(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error generating PDF from IDs: {str(e)}")
+        print(f"Traceback: {error_trace}")
         raise HTTPException(
             status_code=500,
             detail=f"Error generating PDF report: {str(e)}"

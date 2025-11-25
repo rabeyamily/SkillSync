@@ -133,8 +133,9 @@ class PDFReportGenerator:
         # Skill Breakdown Section
         story.extend(self._create_skill_breakdown_section(report.gap_analysis))
 
-        # Recommendations Section
-        story.extend(self._create_recommendations_section(report.recommendations))
+        # Course Recommendations Section
+        course_recs = report.course_recommendations if report.course_recommendations is not None else []
+        story.extend(self._create_course_recommendations_section(course_recs))
 
         # Build PDF
         doc.build(story)
@@ -380,65 +381,74 @@ class PDFReportGenerator:
 
         return elements
 
-    def _create_recommendations_section(self, recommendations: list) -> list:
-        """Create recommendations section with two columns."""
+    def _create_course_recommendations_section(self, course_recommendations: list) -> list:
+        """Create course recommendations section similar to homepage display."""
         elements = []
 
-        header = Paragraph("Recommendations", self.styles["SectionHeader"])
+        header = Paragraph("Recommended Courses", self.styles["SectionHeader"])
         elements.append(header)
 
-        if not recommendations:
+        # Description
+        desc_text = "LinkedIn Learning courses available through NYU to help you develop missing skills."
+        desc_para = Paragraph(desc_text, self.styles["ReportBodyText"])
+        elements.append(desc_para)
+        elements.append(Spacer(1, 0.15 * inch))
+
+        if not course_recommendations:
             no_recs = Paragraph(
-                "No specific recommendations available at this time.",
+                "No course recommendations available at this time.",
                 self.styles["ReportBodyText"],
             )
             elements.append(no_recs)
         else:
-            # Split recommendations into two columns
-            mid_point = (len(recommendations) + 1) // 2
-            left_col_recs = recommendations[:mid_point]
-            right_col_recs = recommendations[mid_point:]
+            # Create a table with course recommendations
+            # Each row will have: Skill Name | Category | Platform | Link
+            course_data = [["Skill", "Category", "Platform", "Link"]]
             
-            # Create bullet lists for each column
-            left_items = [
-                Paragraph(rec, self.styles["ReportBodyText"])
-                for rec in left_col_recs
-            ]
-            left_list = ListFlowable(
-                left_items,
-                bulletType="bullet",
-                bulletFontName="Times-Bold",
-                leftIndent=18,
-            )
+            for rec in course_recommendations:
+                skill_name = rec.get("skill_name", "N/A")
+                category = rec.get("category", "other").replace("_", " ").title()
+                platform = rec.get("platform", "LinkedIn Learning")
+                link = rec.get("linkedin_learning_url", "")
+                
+                # Truncate link for display (show first 50 chars)
+                link_display = link[:50] + "..." if len(link) > 50 else link
+                
+                course_data.append([skill_name, category, platform, link_display])
             
-            right_items = [
-                Paragraph(rec, self.styles["ReportBodyText"])
-                for rec in right_col_recs
-            ]
-            right_list = ListFlowable(
-                right_items,
-                bulletType="bullet",
-                bulletFontName="Times-Bold",
-                leftIndent=18,
-            )
-            
-            # Create a two-column table
-            col_width = 2.75 * inch
-            two_col_table = Table(
-                [[left_list, right_list]],
-                colWidths=[col_width, col_width],
-            )
-            two_col_table.setStyle(
+            # Create table (adjust column widths to fit page)
+            # Page width: 8.5 inch, margins: 1 inch each side = 6.5 inch usable
+            col_widths = [2.2 * inch, 1.3 * inch, 1.3 * inch, 1.7 * inch]
+            course_table = Table(course_data, colWidths=col_widths)
+            course_table.setStyle(
                 TableStyle([
-                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("LEFTPADDING", (0, 0), (0, -1), 0),
-                    ("RIGHTPADDING", (0, 0), (0, -1), 12),
-                    ("LEFTPADDING", (1, 0), (1, -1), 12),
-                    ("RIGHTPADDING", (1, 0), (1, -1), 0),
+                    # Header row
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e40af")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, 0), 11),
+                    ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+                    ("TOPPADDING", (0, 0), (-1, 0), 10),
+                    # Data rows
+                    ("FONTNAME", (0, 1), (-1, -1), "Times-Roman"),
+                    ("FONTSIZE", (0, 1), (-1, -1), 10),
+                    ("GRID", (0, 0), (-1, -1), 1, colors.HexColor("#e5e7eb")),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 1), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
                 ])
             )
-            elements.append(two_col_table)
-
+            elements.append(course_table)
+            elements.append(Spacer(1, 0.2 * inch))
+            
+            # Note about links
+            note_text = "<i>Note: Click on the links above to access the recommended courses on LinkedIn Learning.</i>"
+            note_para = Paragraph(note_text, self.styles["ReportBodyText"])
+            elements.append(note_para)
             elements.append(Spacer(1, 0.3 * inch))
 
         return elements
