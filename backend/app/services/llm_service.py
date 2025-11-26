@@ -14,9 +14,8 @@ class LLMService:
     def __init__(self):
         """Initialize LLM service with OpenAI client."""
         self.client = None
-        self.api_key = settings.openai_api_key
+        # Don't cache API key - read dynamically from settings
         # Read model dynamically from settings (don't cache it)
-        self.model = settings.llm_model
         self.temperature = settings.llm_temperature
         self.max_tokens = settings.llm_max_tokens
         
@@ -26,11 +25,15 @@ class LLMService:
         self.max_retries = 3
         self.retry_delay = 2.0  # Seconds to wait before retry
         
-        # Initialize client if API key is available
+        # Initialize client lazily - will be created when needed
+        self._initialize_client()
+    
+    def _initialize_client(self):
+        """Initialize or reinitialize OpenAI client with current API key from settings."""
+        self.api_key = settings.openai_api_key
         if self.api_key and self.api_key != "your_openai_api_key_here":
             self.client = OpenAI(api_key=self.api_key)
         else:
-            # Use mock mode for development without API key
             self.client = None
     
     def get_model(self):
@@ -88,6 +91,16 @@ class LLMService:
         else:
             return f"Unexpected error: {str(error)}"
     
+    def _ensure_client(self):
+        """Ensure OpenAI client is initialized with current API key."""
+        # Re-check API key from settings in case it was updated
+        current_key = settings.openai_api_key
+        if current_key != self.api_key:
+            self._initialize_client()
+        # If client is None but we have an API key, try to initialize
+        if self.client is None and current_key and current_key != "your_openai_api_key_here":
+            self._initialize_client()
+    
     def call_api(
         self,
         messages: List[Dict[str, str]],
@@ -112,6 +125,9 @@ class LLMService:
         Raises:
             Exception: If API call fails after retries
         """
+        # Ensure client is initialized with latest API key
+        self._ensure_client()
+        
         if not self.client:
             raise Exception(
                 "OpenAI API key not configured. "
@@ -209,6 +225,8 @@ class LLMService:
     
     def is_configured(self) -> bool:
         """Check if LLM service is properly configured."""
+        # Re-check API key from settings
+        self._ensure_client()
         return self.client is not None and self.api_key and self.api_key != "your_openai_api_key_here"
 
 

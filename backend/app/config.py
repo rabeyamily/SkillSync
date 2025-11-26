@@ -2,6 +2,7 @@
 Application settings and configuration.
 """
 from pydantic_settings import BaseSettings
+from pydantic import Field
 from typing import List
 import os
 
@@ -76,6 +77,14 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+# Fallback: If openai_api_key is empty, try reading from OPENAI_API_KEY directly
+# This handles cases where Pydantic Settings doesn't automatically map the env var
+if not settings.openai_api_key or settings.openai_api_key == "":
+    if 'OPENAI_API_KEY' in os.environ:
+        settings.openai_api_key = os.environ['OPENAI_API_KEY']
+    elif 'openai_api_key' in os.environ:
+        settings.openai_api_key = os.environ['openai_api_key']
 
 # Debug: Print if OpenAI API key is loaded (only in debug mode)
 if settings.debug:
