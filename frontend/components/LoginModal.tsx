@@ -26,6 +26,23 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
     return () => setMounted(false);
   }, []);
 
+  // Reset state when modal opens (especially after logout)
+  useEffect(() => {
+    if (isOpen) {
+      // Reset all state when modal opens to ensure clean state
+      setEmail('');
+      setPassword('');
+      setError('');
+      setIsLogin(true); // Always start with login form, not signup
+      setShowPassword(false);
+      setPasswordValidation(null);
+      setShowPasswordRequirements(false);
+      setShowVerification(false); // Reset verification screen
+      setVerificationCode('');
+      setPendingEmail('');
+    }
+  }, [isOpen]);
+
   const handlePasswordChange = (newPassword: string) => {
     setPassword(newPassword);
     if (!isLogin && newPassword.length > 0) {
@@ -110,9 +127,11 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
       } else if (err.message) {
         errorMessage = err.message;
       } else if (err.code === 'ECONNABORTED') {
-        errorMessage = 'Request timed out. Please check if the backend server is running.';
+        errorMessage = 'Request timed out. Please try again.';
       } else if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
-        errorMessage = 'Cannot connect to server. Please check if the backend is running at http://localhost:8000';
+        errorMessage = 'Cannot connect to server. Please check your internet connection and try again.';
+      } else if (err.code === 'ERR_CANCELED') {
+        errorMessage = 'Request was cancelled. Please try again.';
       }
       
       setError(errorMessage);
@@ -342,7 +361,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
                       value={password}
                       onChange={(e) => handlePasswordChange(e.target.value)}
                       required
-                      minLength={isLogin ? 6 : 12}
+                      minLength={isLogin ? 6 : 8}
                       maxLength={64}
                       className="block w-full rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-600 focus:ring-blue-600 dark:bg-gray-700 dark:text-white sm:text-sm transition-colors px-3 py-2.5 pr-16"
                       placeholder=""
