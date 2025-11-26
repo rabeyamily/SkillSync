@@ -376,23 +376,13 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
                   )}
                 </div>
 
-                {/* Legal Agreement Text - only for signup */}
-                {!isLogin && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    By clicking {isLogin ? 'Sign in' : 'Agree & Join'} or Continue, you agree to the SkillSync{' '}
-                    <a href="/about" className="text-blue-600 dark:text-blue-400 hover:underline">User Agreement</a>,{' '}
-                    <a href="/about" className="text-blue-600 dark:text-blue-400 hover:underline">Privacy Policy</a>, and{' '}
-                    <a href="/about" className="text-blue-600 dark:text-blue-400 hover:underline">Cookie Policy</a>.
-                  </p>
-                )}
-
                 {/* Primary Action Button */}
                 <button
                   type="submit"
                   disabled={loading || !email || !password || (!isLogin && passwordValidation !== null && !passwordValidation.isValid)}
                   className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 text-base focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Agree & Join'}
+                  {loading ? 'Please wait...' : isLogin ? 'Sign in' : 'Join'}
                 </button>
 
                 {/* Divider */}

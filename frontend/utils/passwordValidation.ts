@@ -23,19 +23,6 @@ const COMMON_PASSWORDS = [
   'qwerty12345', 'solo12', 'starwars123', 'dragon123', 'password12345'
 ];
 
-// Sequential patterns
-const SEQUENTIAL_PATTERNS = [
-  /(abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)/i,
-  /(012|123|234|345|456|567|678|789|890)/,
-  /(qwer|wert|erty|rtyu|tyui|yuio|uiop|asdf|sdfg|dfgh|fghj|ghjk|hjkl|zxcv|xcvb|cvbn|vbnm)/i
-];
-
-// Keyboard walk patterns
-const KEYBOARD_WALKS = [
-  /(1qaz|qaz2|az2w|z2ws|2wsx|wsx3|sx3e|x3ed|3edc|edc4|dc4r|c4rf|4rfv|rfv5|fv5t|v5tg|5tgb|tgb6|gb6y|b6yh|6yhn|yhn7|hn7u|n7uj|7ujm|ujm8|jm8i|m8ik|8iko|iko9|ko9o|o9ol|9ol0|ol0p|l0p-)/i,
-  /(qwerty|asdfgh|zxcvbn)/i
-];
-
 export interface PasswordValidationResult {
   isValid: boolean;
   errors: string[];
@@ -55,9 +42,9 @@ export function validatePassword(
   const errors: string[] = [];
   let score = 0;
 
-  // 1. Minimum length (12 characters)
-  if (password.length < 12) {
-    errors.push('Password must be at least 12 characters long');
+  // 1. Minimum length (8 characters)
+  if (password.length < 8) {
+    errors.push('Password must be at least 8 characters long');
   } else {
     score += 20;
   }
@@ -95,46 +82,6 @@ export function validatePassword(
     score += 15;
   }
 
-  // 5. No simple patterns
-  // Sequential patterns
-  if (SEQUENTIAL_PATTERNS.some(pattern => pattern.test(password))) {
-    errors.push('Password contains sequential patterns (e.g., "abc", "123")');
-  } else {
-    score += 10;
-  }
-
-  // Keyboard walks
-  if (KEYBOARD_WALKS.some(pattern => pattern.test(password))) {
-    errors.push('Password contains keyboard walk patterns (e.g., "qwerty", "1qaz")');
-  } else {
-    score += 5;
-  }
-
-  // Repeated characters (more than 3 in a row)
-  if (/(.)\1{3,}/.test(password)) {
-    errors.push('Password contains too many repeated characters');
-  } else {
-    score += 5;
-  }
-
-  // 6. No personal info
-  if (userInfo) {
-    const lowerPassword = password.toLowerCase();
-    const checks: { value: string | undefined; name: string }[] = [
-      { value: userInfo.email?.toLowerCase().split('@')[0], name: 'email' },
-      { value: userInfo.fullName?.toLowerCase(), name: 'name' },
-      { value: userInfo.username?.toLowerCase(), name: 'username' },
-      { value: userInfo.phone?.replace(/\D/g, ''), name: 'phone number' }
-    ];
-
-    for (const check of checks) {
-      if (check.value && check.value.length > 2 && lowerPassword.includes(check.value)) {
-        errors.push(`Password cannot contain your ${check.name}`);
-        break;
-      }
-    }
-  }
-
   if (errors.length === 0) {
     score += 5; // Bonus for passing all checks
   }
@@ -164,13 +111,9 @@ export function validatePassword(
  */
 export function getPasswordRequirements(): string[] {
   return [
-    'At least 12 characters (up to 64)',
+    'At least 8 characters (up to 64)',
     'At least 3 of: uppercase, lowercase, numbers, special characters',
-    'No common passwords (e.g., "password123")',
-    'No sequential patterns (e.g., "abc", "123")',
-    'No keyboard walks (e.g., "qwerty")',
-    'No repeated characters (e.g., "aaaa")',
-    'No personal information (name, email, phone)'
+    'No common passwords (e.g., "password123")'
   ];
 }
 
