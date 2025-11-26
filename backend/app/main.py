@@ -52,7 +52,26 @@ async def health_check():
     return {"status": "healthy"}
 
 
-# Debug endpoints - only available in debug mode
+# Debug/config endpoint - always available for production troubleshooting
+@app.get("/debug/config")
+async def debug_config():
+    """Debug endpoint to check configuration (available in production for troubleshooting)."""
+    import os
+    from app.services.llm_service import llm_service
+    
+    return {
+        "openai_api_key_set": bool(settings.openai_api_key and settings.openai_api_key.strip() != ""),
+        "openai_api_key_length": len(settings.openai_api_key) if settings.openai_api_key else 0,
+        "openai_api_key_preview": settings.openai_api_key[:10] + "..." if settings.openai_api_key and len(settings.openai_api_key) > 10 else "NOT_SET",
+        "llm_model": settings.llm_model,
+        "llm_service_configured": llm_service.is_configured(),
+        "debug": settings.debug,
+        "env_OPENAI_API_KEY_exists": 'OPENAI_API_KEY' in os.environ,
+        "env_openai_api_key_exists": 'openai_api_key' in os.environ,
+        "env_OPENAI_API_KEY_length": len(os.environ.get('OPENAI_API_KEY', '')) if 'OPENAI_API_KEY' in os.environ else 0
+    }
+
+# Additional debug endpoints - only available in debug mode
 if settings.debug:
     @app.get("/debug/cors")
     async def debug_cors():
@@ -60,17 +79,6 @@ if settings.debug:
         return {
             "cors_origins": settings.cors_origins,
             "cors_origins_list": settings.cors_origins_list,
-            "debug": settings.debug
-        }
-
-    @app.get("/debug/config")
-    async def debug_config():
-        """Debug endpoint to check configuration."""
-        return {
-            "openai_api_key_set": bool(settings.openai_api_key and settings.openai_api_key != ""),
-            "openai_api_key_length": len(settings.openai_api_key) if settings.openai_api_key else 0,
-            "openai_api_key_preview": settings.openai_api_key[:10] + "..." if settings.openai_api_key and len(settings.openai_api_key) > 10 else "NOT_SET",
-            "llm_model": settings.llm_model,
             "debug": settings.debug
         }
 

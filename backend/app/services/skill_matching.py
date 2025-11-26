@@ -21,40 +21,74 @@ class SkillMatcher:
     # Synonym dictionary for common skill aliases
     SKILL_SYNONYMS: Dict[str, Set[str]] = {
         # Programming Languages
-        "javascript": {"js", "ecmascript", "nodejs", "node.js"},
-        "typescript": {"ts"},
-        "c++": {"cpp", "c plus plus"},
-        "c#": {"csharp", "c-sharp", "dotnet", ".net"},
-        "python": {"py"},
-        "java": {"jvm"},
+        "javascript": {"js", "ecmascript", "nodejs", "node.js", "ecma script"},
+        "typescript": {"ts", "typescript"},
+        "c++": {"cpp", "c plus plus", "cplusplus", "cxx"},
+        "c#": {"csharp", "c-sharp", "dotnet", ".net", "dot net", "csharp"},
+        "python": {"py", "python3", "python 3"},
+        "java": {"jvm", "java se", "java ee"},
         "go": {"golang"},
+        "ruby": {"ruby on rails", "ror"},
+        "php": {"php7", "php 7", "php8", "php 8"},
+        "swift": {"swiftui"},
+        "kotlin": {"kotlin android"},
+        "rust": {"rustlang"},
+        "r": {"r language", "r programming"},
+        "matlab": {"matlab programming"},
         
         # Frameworks
-        "react": {"reactjs", "react.js"},
-        "angular": {"angularjs", "angular.js"},
-        "vue": {"vuejs", "vue.js"},
-        "node.js": {"nodejs", "node", "npm"},
-        "spring boot": {"springboot", "spring"},
+        "react": {"reactjs", "react.js", "reactjs", "react native"},
+        "angular": {"angularjs", "angular.js", "angular 2", "angular2"},
+        "vue": {"vuejs", "vue.js", "vue 3", "vue3"},
+        "node.js": {"nodejs", "node", "npm", "nodejs"},
+        "spring boot": {"springboot", "spring", "spring framework"},
+        "django": {"django framework"},
+        "flask": {"flask framework"},
+        "express": {"express.js", "expressjs"},
+        "next.js": {"nextjs", "next"},
+        "nuxt": {"nuxt.js", "nuxtjs"},
+        "laravel": {"laravel framework"},
+        "symfony": {"symfony framework"},
         
         # Tools & Platforms
-        "aws": {"amazon web services", "amazon aws"},
-        "azure": {"microsoft azure"},
-        "gcp": {"google cloud", "google cloud platform"},
-        "kubernetes": {"k8s"},
-        "ci/cd": {"cicd", "continuous integration", "continuous deployment"},
+        "aws": {"amazon web services", "amazon aws", "aws cloud"},
+        "azure": {"microsoft azure", "azure cloud"},
+        "gcp": {"google cloud", "google cloud platform", "gcp cloud"},
+        "kubernetes": {"k8s", "kubernetes cluster"},
+        "docker": {"docker container", "docker compose"},
+        "git": {"git version control", "git scm"},
+        "jenkins": {"jenkins ci", "jenkins pipeline"},
+        "terraform": {"terraform iac"},
+        "ansible": {"ansible automation"},
+        "ci/cd": {"cicd", "continuous integration", "continuous deployment", "ci cd", "ci-cd"},
+        "github": {"github actions", "github ci"},
+        "gitlab": {"gitlab ci", "gitlab pipeline"},
         
         # Databases
-        "postgresql": {"postgres"},
-        "mongodb": {"mongo"},
+        "postgresql": {"postgres", "postgres db", "postgresql database"},
+        "mongodb": {"mongo", "mongo db", "mongodb database"},
+        "mysql": {"mysql database", "mysql db"},
+        "redis": {"redis cache", "redis database"},
+        "sqlite": {"sqlite database", "sqlite db"},
+        "oracle": {"oracle database", "oracle db"},
+        "sql server": {"mssql", "microsoft sql server", "sqlserver"},
+        "elasticsearch": {"elastic search", "es"},
+        "cassandra": {"apache cassandra"},
+        "dynamodb": {"dynamo db", "aws dynamodb"},
         
         # Methodologies
-        "agile": {"agile methodology", "agile development"},
-        "scrum": {"scrum methodology"},
+        "agile": {"agile methodology", "agile development", "agile practices"},
+        "scrum": {"scrum methodology", "scrum framework", "scrum master"},
+        "kanban": {"kanban board", "kanban methodology"},
+        "devops": {"dev ops", "dev-ops"},
+        "microservices": {"micro services", "micro-services", "microservice architecture"},
         
         # Soft Skills
-        "problem solving": {"problem-solving", "troubleshooting", "debugging"},
-        "communication": {"communication skills", "verbal communication", "written communication"},
-        "leadership": {"leadership skills", "team leadership"},
+        "problem solving": {"problem-solving", "troubleshooting", "debugging", "problem solving skills"},
+        "communication": {"communication skills", "verbal communication", "written communication", "interpersonal communication"},
+        "leadership": {"leadership skills", "team leadership", "leadership experience"},
+        "collaboration": {"team collaboration", "collaborative skills", "teamwork"},
+        "analytical thinking": {"analytical skills", "analytical reasoning", "critical thinking"},
     }
     
     # Normalization rules
@@ -65,16 +99,19 @@ class SkillMatcher:
         r'\.tsx$': '',  # Remove .tsx suffix
         r'\s+': ' ',  # Normalize whitespace
         r'[-_]': ' ',  # Replace hyphens/underscores with spaces
+        r'\s+v?\d+\.?\d*\.?\d*': '',  # Remove version numbers (e.g., "Python 3.9" -> "Python", "React 18.2.0" -> "React")
+        r'\s+\(.*?\)': '',  # Remove parenthetical content (e.g., "Python (3.9)" -> "Python")
     }
     
     # Fuzzy matching threshold
-    FUZZY_THRESHOLD = 0.85  # 85% similarity for fuzzy match
+    FUZZY_THRESHOLD = 0.75  # 75% similarity for fuzzy match (lowered from 0.85 for better matching)
     
     # Match type priority (higher = better match)
     MATCH_PRIORITY = {
-        "exact": 4,
-        "synonym": 3,
-        "fuzzy": 2,
+        "exact": 5,
+        "synonym": 4,
+        "fuzzy": 3,
+        "cross_category": 2,  # Cross-category match (same name, different category)
         "category": 1
     }
     
@@ -102,8 +139,11 @@ class SkillMatcher:
         normalized = re.sub(r'\s+', ' ', normalized).strip()
         
         # Remove common prefixes/suffixes
-        normalized = re.sub(r'^(proficient|experienced|skilled|expert|knowledge|familiar)\s+', '', normalized)
-        normalized = re.sub(r'\s+(experience|proficiency|skills?|knowledge)$', '', normalized)
+        normalized = re.sub(r'^(proficient|experienced|skilled|expert|knowledge|familiar|working|hands-on)\s+', '', normalized)
+        normalized = re.sub(r'\s+(experience|proficiency|skills?|knowledge|framework|library|tool|platform|technology)$', '', normalized)
+        
+        # Remove trailing version info that might have been missed
+        normalized = re.sub(r'\s+\d+\.?\d*$', '', normalized)
         
         return normalized
     
@@ -214,6 +254,7 @@ class SkillMatcher:
         """
         Match two skills and return match result.
         Uses a cascading approach: tries each match type in order until one succeeds.
+        Now includes cross-category matching for better accuracy.
         
         Args:
             skill1: First skill
@@ -235,6 +276,15 @@ class SkillMatcher:
             {
                 "name": "fuzzy",
                 "check": lambda: SkillMatcher.fuzzy_match(skill1, skill2)[0]
+            },
+            {
+                "name": "cross_category",
+                "check": lambda: (
+                    # Cross-category matching: same normalized name but different categories
+                    # This handles cases where LLM categorizes the same skill differently
+                    SkillMatcher.normalize_skill_name(skill1.name) == SkillMatcher.normalize_skill_name(skill2.name) and
+                    skill1.category != skill2.category
+                )
             },
             {
                 "name": "category",
