@@ -20,6 +20,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
+  const [googleLoginKey, setGoogleLoginKey] = useState(0); // Key to force Google button reset
 
   useEffect(() => {
     setMounted(true);
@@ -40,6 +41,8 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
       setShowVerification(false); // Reset verification screen
       setVerificationCode('');
       setPendingEmail('');
+      // Force Google button to reset by changing key (prevents personalized button)
+      setGoogleLoginKey(prev => prev + 1);
     }
   }, [isOpen]);
 
@@ -419,6 +422,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }: { isOpen: boo
                 {/* Google Sign In Button */}
                 <div className="w-full">
                   <GoogleLogin
+                    key={`google-login-${googleLoginKey}`} // Force re-render when modal opens to reset personalized button
                     onSuccess={handleGoogleSuccess}
                     onError={handleGoogleError}
                     useOneTap={false}
