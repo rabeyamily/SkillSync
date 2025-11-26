@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getProfile, updateProfile, uploadCV, downloadCV, isAuthenticated, getCurrentUser, getCV } from "@/services/api";
 import type { Profile } from "@/services/api";
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -434,7 +434,7 @@ export default function ProfilePage() {
           .split(" ")
           .filter(Boolean)
           .slice(0, 2)
-          .map((part) => part[0]?.toUpperCase())
+          .map((part: string) => part[0]?.toUpperCase())
           .join("") || "👤"
       : "👤";
 
@@ -769,5 +769,13 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ProfilePageContent />
+    </Suspense>
   );
 }

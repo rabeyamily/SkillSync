@@ -44,7 +44,7 @@ frontend/
 │   └── api.ts            # Axios API client
 ├── utils/                 # Utility functions
 │   ├── types.ts         # TypeScript type definitions
-│   └── export.ts        # Export utilities (CSV, PDF)
+│   └── export.ts        # Export utilities (PDF)
 ├── public/               # Static assets
 └── package.json          # Dependencies
 ```
@@ -55,7 +55,6 @@ frontend/
 - **Language:** TypeScript
 - **Styling:** TailwindCSS 4
 - **HTTP Client:** Axios
-- **Charts:** Recharts
 
 ## Available Scripts
 

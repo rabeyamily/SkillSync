@@ -17,7 +17,7 @@ import {
 import {
   RetryableError,
 } from "@/components/LoadingStates";
-import { exportToCSV, downloadCSV, downloadPDF } from "@/utils/export";
+import { downloadPDF } from "@/utils/export";
 import { generatePDFReport, generatePDFReportFromIds } from "@/services/api";
 
 export default function Home() {
@@ -34,7 +34,6 @@ const [error, setError] = useState<string | null>(null);
 const [downloadError, setDownloadError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
-  const [downloadingCSV, setDownloadingCSV] = useState(false);
   const [resumeSkills, setResumeSkills] = useState<SkillExtractionResult | null>(null);
   const [jdSkills, setJdSkills] = useState<SkillExtractionResult | null>(null);
 
@@ -563,20 +562,6 @@ const [downloadError, setDownloadError] = useState<string | null>(null);
     }
   };
 
-  const handleDownloadCSV = () => {
-    if (!report) return;
-
-    setDownloadingCSV(true);
-    try {
-      const csvContent = exportToCSV(report);
-      const filename = `skill_gap_report_${new Date().toISOString().split("T")[0]}.csv`;
-      downloadCSV(csvContent, filename);
-    } catch (err: any) {
-      setError("Failed to generate CSV. Please try again.");
-    } finally {
-      setDownloadingCSV(false);
-    }
-  };
 
   return (
     <div className="bg-gradient-to-b from-blue-50 via-white to-blue-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-blue-950/20">
@@ -982,10 +967,8 @@ const [downloadError, setDownloadError] = useState<string | null>(null);
               {/* Download Actions */}
               <DownloadActions
                 onDownloadPDF={handleDownloadPDF}
-                onDownloadCSV={handleDownloadCSV}
                 downloadingPDF={downloadingPDF}
-              downloadingCSV={downloadingCSV}
-              errorMessage={downloadError}
+                errorMessage={downloadError}
               />
             </div>
           </div>
@@ -1279,7 +1262,6 @@ function SkillList({
               category={skill.category}
               type={type}
               matchType={matches?.[index]?.match_type}
-              confidence={matches?.[index]?.confidence}
             />
           ))}
         </div>
@@ -1290,15 +1272,11 @@ function SkillList({
 
 function DownloadActions({
   onDownloadPDF,
-  onDownloadCSV,
   downloadingPDF,
-  downloadingCSV,
   errorMessage,
 }: {
   onDownloadPDF: () => void;
-  onDownloadCSV: () => void;
   downloadingPDF: boolean;
-  downloadingCSV: boolean;
   errorMessage?: string | null;
 }) {
   return (
@@ -1372,54 +1350,6 @@ function DownloadActions({
                   />
                 </svg>
                 PDF
-              </>
-            )}
-          </button>
-          <button
-            onClick={onDownloadCSV}
-            disabled={downloadingCSV}
-            className="group relative inline-flex items-center justify-center rounded-lg border-2 border-blue-200 bg-white px-4 py-1.5 text-sm font-semibold shadow-sm hover:bg-blue-50 hover:border-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#57068C] disabled:bg-gray-100 disabled:border-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed dark:border-blue-700 dark:bg-gray-800 dark:hover:bg-blue-950/30 dark:hover:border-blue-500 dark:disabled:bg-gray-900 dark:disabled:border-gray-700 transition-all duration-200 hover:scale-105 disabled:hover:scale-100"
-            style={{ color: '#0077b5' }}
-          >
-            {downloadingCSV ? (
-              <>
-                <svg
-                  className="mr-2 h-4 w-4 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Generating...
-              </>
-            ) : (
-              <>
-                <svg
-                  className="mr-2 h-4 w-4 transition-transform group-hover:scale-110"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                CSV
               </>
             )}
           </button>

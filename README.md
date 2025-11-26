@@ -14,7 +14,7 @@ University curricula in Computer Science often lag behind rapidly evolving indus
 - 🤖 **AI-Powered Skill Extraction** - Uses LLM-based NLP to extract technical and soft skills
 - 📊 **Fit Score Calculation** - Quantifies match percentage between resume and job requirements
 - 🔍 **Gap Analysis** - Identifies missing skills, matched skills, and extra competencies
-- 📈 **Visual Dashboard** - Interactive charts and skill breakdowns
+- 📊 **Skill Analysis Dashboard** - Detailed skill breakdowns and gap analysis
 - 📑 **Downloadable Reports** - Generate PDF reports with personalized recommendations
 - 🔒 **Privacy-First** - Session-based processing with no login or data storage
 
@@ -34,7 +34,6 @@ capstone_app/
 ### Frontend
 - **Framework:** React / Next.js
 - **Styling:** TailwindCSS
-- **Visualization:** Chart.js / Recharts
 - **PDF Generation:** jsPDF
 
 ### Backend

@@ -25,20 +25,6 @@ COMMON_PASSWORDS = [
     'qwerty12345', 'solo12', 'starwars123', 'dragon123', 'password12345'
 ]
 
-# Sequential patterns
-SEQUENTIAL_PATTERNS = [
-    re.compile(r'(abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)', re.IGNORECASE),
-    re.compile(r'(012|123|234|345|456|567|678|789|890)'),
-    re.compile(r'(qwer|wert|erty|rtyu|tyui|yuio|uiop|asdf|sdfg|dfgh|fghj|ghjk|hjkl|zxcv|xcvb|cvbn|vbnm)', re.IGNORECASE)
-]
-
-# Keyboard walk patterns
-KEYBOARD_WALKS = [
-    re.compile(r'(1qaz|qaz2|az2w|z2ws|2wsx|wsx3|sx3e|x3ed|3edc|edc4|dc4r|c4rf|4rfv|rfv5|fv5t|v5tg|5tgb|tgb6|gb6y|b6yh|6yhn|yhn7|hn7u|n7uj|7ujm|ujm8|jm8i|m8ik|8iko|iko9|ko9o|o9ol|9ol0|ol0p|l0p-)', re.IGNORECASE),
-    re.compile(r'(qwerty|asdfgh|zxcvbn)', re.IGNORECASE)
-]
-
-
 def validate_password(
     password: str,
     user_info: Optional[dict] = None
@@ -55,9 +41,9 @@ def validate_password(
     """
     errors = []
     
-    # 1. Minimum length (12 characters)
-    if len(password) < 12:
-        errors.append("Password must be at least 12 characters long")
+    # 1. Minimum length (8 characters)
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters long")
     
     # 2. Maximum length (64 characters)
     if len(password) > 64:
@@ -92,53 +78,6 @@ def validate_password(
         if common.lower() in lower_password:
             errors.append("Password is too common. Please choose a more unique password")
             break
-    
-    # 5. No simple patterns
-    # Sequential patterns
-    for pattern in SEQUENTIAL_PATTERNS:
-        if pattern.search(password):
-            errors.append("Password contains sequential patterns (e.g., 'abc', '123')")
-            break
-    
-    # Keyboard walks
-    for pattern in KEYBOARD_WALKS:
-        if pattern.search(password):
-            errors.append("Password contains keyboard walk patterns (e.g., 'qwerty', '1qaz')")
-            break
-    
-    # Repeated characters (more than 3 in a row)
-    if re.search(r'(.)\1{3,}', password):
-        errors.append("Password contains too many repeated characters")
-    
-    # 6. No personal info
-    if user_info:
-        lower_password = password.lower()
-        
-        # Check email (username part)
-        if user_info.get('email'):
-            email_username = user_info['email'].lower().split('@')[0]
-            if len(email_username) > 2 and email_username in lower_password:
-                errors.append("Password cannot contain your email")
-        
-        # Check full name
-        if user_info.get('full_name'):
-            name_parts = user_info['full_name'].lower().split()
-            for part in name_parts:
-                if len(part) > 2 and part in lower_password:
-                    errors.append("Password cannot contain your name")
-                    break
-        
-        # Check username
-        if user_info.get('username'):
-            username = user_info['username'].lower()
-            if len(username) > 2 and username in lower_password:
-                errors.append("Password cannot contain your username")
-        
-        # Check phone (digits only)
-        if user_info.get('phone'):
-            phone_digits = ''.join(filter(str.isdigit, user_info['phone']))
-            if len(phone_digits) > 3 and phone_digits in password:
-                errors.append("Password cannot contain your phone number")
     
     return len(errors) == 0, errors
 

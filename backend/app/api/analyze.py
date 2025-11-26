@@ -58,12 +58,6 @@ async def analyze_gap(request: AnalyzeGapRequest):
             include_certifications=True
         )
         
-        # Generate recommendations
-        recommendations = recommendations_generator.generate_recommendations(
-            gap_analysis=gap_analysis,
-            overall_score=fit_score.overall_score
-        )
-        
         # Generate course recommendations with Coursera links
         course_recommendations = recommendations_generator.generate_course_recommendations(
             gap_analysis=gap_analysis
@@ -92,7 +86,7 @@ async def analyze_gap(request: AnalyzeGapRequest):
             job_description_summary=jd_summary,
             fit_score=fit_score,
             gap_analysis=gap_analysis,
-            recommendations=recommendations,
+            recommendations=[],  # Text recommendations removed - only course recommendations used
             course_recommendations=course_recommendations,
             generated_at=datetime.now(),
             version="1.0.0"
