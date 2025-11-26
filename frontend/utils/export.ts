@@ -42,10 +42,10 @@ export function exportToCSV(report: SkillGapReport): string {
 
   // Matched Skills
   rows.push("Matched Skills");
-  rows.push("Skill Name,Category,Match Type,Confidence");
+  rows.push("Skill Name,Category,Match Type");
   report.gap_analysis.matched_skills.forEach((match) => {
     rows.push(
-      `"${match.skill.name}","${match.skill.category}","${match.match_type}",${(match.confidence * 100).toFixed(2)}%`
+      `"${match.skill.name}","${match.skill.category}","${match.match_type}"`
     );
   });
   rows.push("");

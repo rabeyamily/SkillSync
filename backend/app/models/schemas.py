@@ -71,8 +71,7 @@ class SkillExtractionResult(BaseModel):
 class SkillMatch(BaseModel):
     """Represents a matched skill between resume and job description."""
     skill: Skill = Field(..., description="The matched skill")
-    match_type: str = Field(..., description="Type of match (exact, synonym, fuzzy)")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Match confidence")
+    match_type: str = Field(..., description="Type of match (exact, synonym, fuzzy, category)")
 
 
 class GapAnalysis(BaseModel):

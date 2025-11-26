@@ -195,12 +195,8 @@ class UnifiedSkillExtractor:
         # Combine all skills
         all_skills = (technical_skills or []) + (soft_skills or []) + (methodologies or [])
         
-        # Calculate confidence score (simple average)
+        # Confidence score removed - no longer calculated
         confidence_score = None
-        if all_skills:
-            confidences = [s.confidence for s in all_skills if s.confidence is not None]
-            if confidences:
-                confidence_score = sum(confidences) / len(confidences)
         
         extraction_time = time.time() - start_time
         

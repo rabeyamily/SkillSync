@@ -89,7 +89,6 @@ export interface SkillExtractionResult {
 export interface SkillMatch {
   skill: Skill;
   match_type: string;
-  confidence: number;
 }
 
 export interface GapAnalysis {

@@ -69,10 +69,14 @@ class SkillMatcher:
     
     # Fuzzy matching threshold
     FUZZY_THRESHOLD = 0.85  # 85% similarity for fuzzy match
-    EXACT_MATCH_CONFIDENCE = 1.0
-    SYNONYM_MATCH_CONFIDENCE = 0.95
-    FUZZY_MATCH_CONFIDENCE = 0.80
-    CATEGORY_MATCH_CONFIDENCE = 0.70
+    
+    # Match type priority (higher = better match)
+    MATCH_PRIORITY = {
+        "exact": 4,
+        "synonym": 3,
+        "fuzzy": 2,
+        "category": 1
+    }
     
     @staticmethod
     def normalize_skill_name(skill_name: str) -> str:
@@ -209,6 +213,7 @@ class SkillMatcher:
     def match_skills(skill1: Skill, skill2: Skill) -> Optional[SkillMatch]:
         """
         Match two skills and return match result.
+        Uses a cascading approach: tries each match type in order until one succeeds.
         
         Args:
             skill1: First skill
@@ -217,45 +222,42 @@ class SkillMatcher:
         Returns:
             SkillMatch if match found, None otherwise
         """
-        # Try exact match first
-        if SkillMatcher.exact_match(skill1, skill2):
-            return SkillMatch(
-                skill=skill1,
-                match_type="exact",
-                confidence=SkillMatcher.EXACT_MATCH_CONFIDENCE
-            )
+        # Define match strategies in priority order (highest to lowest)
+        match_strategies = [
+            {
+                "name": "exact",
+                "check": lambda: SkillMatcher.exact_match(skill1, skill2)
+            },
+            {
+                "name": "synonym",
+                "check": lambda: SkillMatcher.synonym_match(skill1, skill2)
+            },
+            {
+                "name": "fuzzy",
+                "check": lambda: SkillMatcher.fuzzy_match(skill1, skill2)[0]
+            },
+            {
+                "name": "category",
+                "check": lambda: (
+                    SkillMatcher.category_match(skill1, skill2) and
+                    levenshtein_ratio(
+                        SkillMatcher.normalize_skill_name(skill1.name),
+                        SkillMatcher.normalize_skill_name(skill2.name)
+                    ) >= 0.6
+                )
+            }
+        ]
         
-        # Try synonym match
-        if SkillMatcher.synonym_match(skill1, skill2):
-            return SkillMatch(
-                skill=skill1,
-                match_type="synonym",
-                confidence=SkillMatcher.SYNONYM_MATCH_CONFIDENCE
-            )
-        
-        # Try fuzzy match
-        is_fuzzy_match, similarity = SkillMatcher.fuzzy_match(skill1, skill2)
-        if is_fuzzy_match:
-            return SkillMatch(
-                skill=skill1,
-                match_type="fuzzy",
-                confidence=similarity * SkillMatcher.FUZZY_MATCH_CONFIDENCE
-            )
-        
-        # Try category match (only if categories match)
-        if SkillMatcher.category_match(skill1, skill2):
-            # Check if names are somewhat similar
-            name1 = SkillMatcher.normalize_skill_name(skill1.name)
-            name2 = SkillMatcher.normalize_skill_name(skill2.name)
-            similarity = levenshtein_ratio(name1, name2)
-            
-            if similarity >= 0.6:  # Lower threshold for category match
+        # Try each strategy in order until one succeeds
+        for strategy in match_strategies:
+            if strategy["check"]():
+                # Return match result (no confidence calculation)
                 return SkillMatch(
                     skill=skill1,
-                    match_type="category",
-                    confidence=similarity * SkillMatcher.CATEGORY_MATCH_CONFIDENCE
+                    match_type=strategy["name"]
                 )
         
+        # No match found
         return None
     
     @staticmethod
@@ -277,7 +279,7 @@ class SkillMatcher:
         for jd_skill in jd_skills:
             best_match = None
             best_match_index = -1
-            best_confidence = 0.0
+            best_priority = 0
             
             for idx, resume_skill in enumerate(resume_skills):
                 if idx in matched_resume_indices:
@@ -285,10 +287,13 @@ class SkillMatcher:
                 
                 match = SkillMatcher.match_skills(resume_skill, jd_skill)
                 
-                if match and match.confidence > best_confidence:
-                    best_match = match
-                    best_match_index = idx
-                    best_confidence = match.confidence
+                # Use match type priority instead of confidence
+                if match:
+                    match_priority = SkillMatcher.MATCH_PRIORITY.get(match.match_type, 0)
+                    if match_priority > best_priority:
+                        best_match = match
+                        best_match_index = idx
+                        best_priority = match_priority
             
             if best_match:
                 matches.append(best_match)

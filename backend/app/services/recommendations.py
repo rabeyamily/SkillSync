@@ -144,7 +144,7 @@ class RecommendationsGenerator:
             
             if fuzzy_matches > 0:
                 recommendations.append(
-                    f"📝 Note: {fuzzy_matches} of your skills matched with lower confidence. "
+                    f"📝 Note: {fuzzy_matches} of your skills matched with lower precision (fuzzy matches). "
                     "Consider updating your resume to use the exact terminology from the job description "
                     "to improve keyword matching."
                 )
