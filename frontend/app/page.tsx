@@ -507,55 +507,34 @@ const [downloadError, setDownloadError] = useState<string | null>(null);
     const resumeId = resumeFileId || resumeTextId;
     const jdId = jdFileId || jdTextId;
 
-    if (!resumeId || !jdId) {
-      setDownloadError("Cannot download PDF: Missing resume or job description.");
-      return;
-    }
-
     setDownloadingPDF(true);
     setDownloadError(null);
+    
     try {
-      const pdfBlob = await generatePDFReportFromIds(resumeId, jdId);
-      const filename = `skill_gap_report_${new Date().toISOString().split("T")[0]}.pdf`;
-      downloadPDF(pdfBlob, filename);
-      setDownloadError(null);
+      // Use already-extracted skills if available (ensures PDF matches UI analysis)
+      const currentResumeSkills = resumeSkills || loadSkillsFromSession(resumeId || '', "resume_skills");
+      const currentJdSkills = jdSkills || loadSkillsFromSession(jdId || '', "jd_skills");
+
+      if (currentResumeSkills && currentJdSkills) {
+        // Use direct PDF generation with already-extracted skills (no re-extraction)
+        const pdfBlob = await generatePDFReport({
+          resume_skills: currentResumeSkills,
+          jd_skills: currentJdSkills,
+        });
+        const filename = `skill_gap_report_${new Date().toISOString().split("T")[0]}.pdf`;
+        downloadPDF(pdfBlob, filename);
+        setDownloadError(null);
+      } else if (resumeId && jdId) {
+        // Fallback: re-extract from file IDs if skills not available
+        const pdfBlob = await generatePDFReportFromIds(resumeId, jdId);
+        const filename = `skill_gap_report_${new Date().toISOString().split("T")[0]}.pdf`;
+        downloadPDF(pdfBlob, filename);
+        setDownloadError(null);
+      } else {
+        setDownloadError("Cannot download PDF: Missing resume or job description data.");
+      }
     } catch (err: any) {
       const errorMessage = err.message || err.response?.data?.detail || "Failed to generate PDF. Please try again.";
-
-      const isNotFound =
-        err?.response?.status === 404 ||
-        (errorMessage && errorMessage.toLowerCase().includes("not found"));
-
-      if (isNotFound) {
-        const fallbackResumeSkills =
-          resumeSkills || loadSkillsFromSession(resumeId, "resume_skills");
-        const fallbackJdSkills =
-          jdSkills || loadSkillsFromSession(jdId, "jd_skills");
-
-        if (fallbackResumeSkills && fallbackJdSkills) {
-          try {
-            const pdfBlob = await generatePDFReport({
-              resume_skills: fallbackResumeSkills,
-              jd_skills: fallbackJdSkills,
-            });
-            const filename = `skill_gap_report_${new Date().toISOString().split("T")[0]}.pdf`;
-            downloadPDF(pdfBlob, filename);
-            setDownloadError(null);
-            return;
-          } catch (fallbackErr: any) {
-            const fallbackMessage =
-              fallbackErr.message ||
-              fallbackErr.response?.data?.detail ||
-              "Failed to generate PDF with stored data.";
-            setDownloadError(fallbackMessage);
-            return;
-          }
-        } else {
-          setDownloadError("We can't find your uploaded files anymore. Please re-upload your files and try again.");
-          return;
-        }
-      }
-
       setDownloadError(errorMessage);
     } finally {
       setDownloadingPDF(false);
