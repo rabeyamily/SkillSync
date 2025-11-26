@@ -109,6 +109,46 @@ if not api_key_loaded:
     if env_var_exists:
         print(f"[CONFIG]    Environment variable exists but is empty or whitespace.")
 
+# CRITICAL: Explicitly read SMTP settings from environment as fallback
+# Similar to OpenAI API key, ensure SMTP settings are loaded in production
+if not settings.smtp_user or settings.smtp_user.strip() == "":
+    if 'SMTP_USER' in os.environ and os.environ['SMTP_USER'].strip():
+        settings.smtp_user = os.environ['SMTP_USER'].strip()
+        print(f"[CONFIG] ✓ Loaded SMTP_USER from environment (fallback)")
+    elif 'smtp_user' in os.environ and os.environ['smtp_user'].strip():
+        settings.smtp_user = os.environ['smtp_user'].strip()
+        print(f"[CONFIG] ✓ Loaded smtp_user from environment (fallback)")
+
+if not settings.smtp_password or settings.smtp_password.strip() == "":
+    if 'SMTP_PASSWORD' in os.environ and os.environ['SMTP_PASSWORD'].strip():
+        settings.smtp_password = os.environ['SMTP_PASSWORD'].strip()
+        print(f"[CONFIG] ✓ Loaded SMTP_PASSWORD from environment (fallback)")
+    elif 'smtp_password' in os.environ and os.environ['smtp_password'].strip():
+        settings.smtp_password = os.environ['smtp_password'].strip()
+        print(f"[CONFIG] ✓ Loaded smtp_password from environment (fallback)")
+
+if not settings.smtp_from_email or settings.smtp_from_email.strip() == "":
+    if 'SMTP_FROM_EMAIL' in os.environ and os.environ['SMTP_FROM_EMAIL'].strip():
+        settings.smtp_from_email = os.environ['SMTP_FROM_EMAIL'].strip()
+        print(f"[CONFIG] ✓ Loaded SMTP_FROM_EMAIL from environment (fallback)")
+    elif 'smtp_from_email' in os.environ and os.environ['smtp_from_email'].strip():
+        settings.smtp_from_email = os.environ['smtp_from_email'].strip()
+        print(f"[CONFIG] ✓ Loaded smtp_from_email from environment (fallback)")
+
+# Log SMTP configuration status
+smtp_configured = bool(settings.smtp_user and settings.smtp_password and settings.smtp_user.strip() != "" and settings.smtp_password.strip() != "")
+print(f"[CONFIG] SMTP Configuration Status:")
+print(f"  - SMTP User: {'✓ Set' if settings.smtp_user and settings.smtp_user.strip() else '✗ Not set'}")
+print(f"  - SMTP Password: {'✓ Set' if settings.smtp_password and settings.smtp_password.strip() else '✗ Not set'}")
+print(f"  - SMTP Host: {settings.smtp_host}")
+print(f"  - SMTP Port: {settings.smtp_port}")
+print(f"  - SMTP From Email: {settings.smtp_from_email or 'Not set'}")
+print(f"  - Fully Configured: {smtp_configured}")
+
+if not smtp_configured:
+    print(f"[CONFIG] ⚠️  WARNING: SMTP is NOT fully configured!")
+    print(f"[CONFIG]    Email verification will not work. Please set SMTP_USER and SMTP_PASSWORD in Railway.")
+
 # Debug: Print additional details (only in debug mode)
 if settings.debug:
     print(f"[CONFIG DEBUG] Environment OPENAI_API_KEY exists: {'OPENAI_API_KEY' in os.environ}")

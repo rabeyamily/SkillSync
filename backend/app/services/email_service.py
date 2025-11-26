@@ -29,7 +29,11 @@ def send_verification_email(email: str, code: str) -> bool:
     try:
         # Check if email settings are configured
         if not settings.smtp_user or not settings.smtp_password:
-            print("Email settings not configured. Skipping email send.")
+            print(f"[EMAIL] ⚠️  Email settings not configured!")
+            print(f"[EMAIL]    SMTP_USER: {'Set' if settings.smtp_user else 'NOT SET'}")
+            print(f"[EMAIL]    SMTP_PASSWORD: {'Set' if settings.smtp_password else 'NOT SET'}")
+            print(f"[EMAIL]    SMTP_HOST: {settings.smtp_host}")
+            print(f"[EMAIL]    SMTP_PORT: {settings.smtp_port}")
             # In development, print the code instead
             if settings.debug:
                 print(f"[DEV] Verification code for {email}: {code}")
@@ -95,16 +99,39 @@ def send_verification_email(email: str, code: str) -> bool:
         msg.attach(part2)
         
         # Send email
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
-            server.starttls()
-            server.login(settings.smtp_user, settings.smtp_password)
-            server.send_message(msg)
+        print(f"[EMAIL] Attempting to send verification email to {email}...")
+        print(f"[EMAIL] Using SMTP: {settings.smtp_host}:{settings.smtp_port}")
+        print(f"[EMAIL] From: {settings.smtp_from_email or settings.smtp_user}")
         
-        print(f"Verification email sent to {email}")
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=30) as server:
+            print(f"[EMAIL] Connected to SMTP server")
+            server.starttls()
+            print(f"[EMAIL] TLS started")
+            server.login(settings.smtp_user, settings.smtp_password)
+            print(f"[EMAIL] Logged in successfully")
+            server.send_message(msg)
+            print(f"[EMAIL] Message sent successfully")
+        
+        print(f"[EMAIL] ✓ Verification email sent to {email}")
         return True
         
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"[EMAIL] ✗ SMTP Authentication Error: {str(e)}")
+        print(f"[EMAIL]    Check that SMTP_USER and SMTP_PASSWORD are correct")
+        print(f"[EMAIL]    For Gmail, ensure you're using an App Password, not your regular password")
+        if settings.debug:
+            print(f"[DEV] Verification code for {email}: {code}")
+        return False
+    except smtplib.SMTPException as e:
+        print(f"[EMAIL] ✗ SMTP Error: {str(e)}")
+        if settings.debug:
+            print(f"[DEV] Verification code for {email}: {code}")
+        return False
     except Exception as e:
-        print(f"Error sending verification email to {email}: {str(e)}")
+        print(f"[EMAIL] ✗ Error sending verification email to {email}: {str(e)}")
+        print(f"[EMAIL]    Error type: {type(e).__name__}")
+        import traceback
+        print(f"[EMAIL]    Traceback: {traceback.format_exc()}")
         # In development, still print the code
         if settings.debug:
             print(f"[DEV] Verification code for {email}: {code}")
