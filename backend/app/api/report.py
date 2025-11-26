@@ -93,8 +93,24 @@ async def generate_pdf_report(request: AnalyzeGapRequest):
             version="1.0.0"
         )
         
-        # Generate PDF
-        pdf_buffer = pdf_report_generator.generate_pdf(report)
+        # Generate PDF (run in thread pool with timeout to avoid blocking)
+        loop = asyncio.get_running_loop()
+        PDF_GENERATION_TIMEOUT = 60  # 1 minute for PDF generation
+        
+        try:
+            pdf_buffer = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    pdf_report_generator.generate_pdf,
+                    report
+                ),
+                timeout=PDF_GENERATION_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=408,
+                detail=f"PDF generation timed out after {PDF_GENERATION_TIMEOUT} seconds. Please try again."
+            )
         
         return Response(
             content=pdf_buffer.read(),
@@ -153,22 +169,41 @@ async def generate_pdf_from_ids(
         if isinstance(jd_text, bytes):
             jd_text = jd_text.decode("utf-8", errors="ignore")
         
-        # Extract skills (run synchronous extractor in thread pool)
+        # Extract skills (run synchronous extractor in thread pool with timeout)
         loop = asyncio.get_running_loop()
+        EXTRACTION_TIMEOUT = 120  # 2 minutes per extraction
 
-        resume_result, error = await loop.run_in_executor(
-            None,
-            partial(unified_skill_extractor.extract_from_text, resume_text, "resume")
-        )
-        if error:
-            raise HTTPException(status_code=400, detail=f"Resume extraction error: {error}")
+        try:
+            resume_result, error = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    partial(unified_skill_extractor.extract_from_text, resume_text, "resume")
+                ),
+                timeout=EXTRACTION_TIMEOUT
+            )
+            if error:
+                raise HTTPException(status_code=400, detail=f"Resume extraction error: {error}")
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=408,
+                detail=f"Resume skill extraction timed out after {EXTRACTION_TIMEOUT} seconds. Please try again."
+            )
         
-        jd_result, error = await loop.run_in_executor(
-            None,
-            partial(unified_skill_extractor.extract_from_text, jd_text, "job_description")
-        )
-        if error:
-            raise HTTPException(status_code=400, detail=f"Job description extraction error: {error}")
+        try:
+            jd_result, error = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    partial(unified_skill_extractor.extract_from_text, jd_text, "job_description")
+                ),
+                timeout=EXTRACTION_TIMEOUT
+            )
+            if error:
+                raise HTTPException(status_code=400, detail=f"Job description extraction error: {error}")
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=408,
+                detail=f"Job description skill extraction timed out after {EXTRACTION_TIMEOUT} seconds. Please try again."
+            )
         
         # Create request
         weights = None

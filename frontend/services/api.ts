@@ -358,6 +358,7 @@ export const generatePDFReport = async (
   try {
     const response = await apiClient.post("/api/report/generate-pdf", request, {
       responseType: "blob",
+      timeout: 180000, // 3 minutes timeout for PDF generation
       validateStatus: (status) => status < 500, // Don't throw for 4xx errors, we'll handle them
     });
 
@@ -405,6 +406,7 @@ export const generatePDFReportFromIds = async (
       {},
       {
         responseType: "blob",
+        timeout: 180000, // 3 minutes timeout (includes skill extraction + PDF generation)
         validateStatus: (status) => status < 500, // Don't throw for 4xx errors, we'll handle them
       }
     );
